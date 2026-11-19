@@ -1,17 +1,16 @@
-[build-system]
-requires = ['setuptools', 'wheel']
-build-backend = 'setuptools.build_meta'
-
-
 [project]
 name = "reqmachine"
 version = "0.1.0"
 description = "A small requests-based HTTP client with retries, JSON parsing and file upload/download helpers."
 readme = "README.md"
 license = "MIT"
-authors = [{ name = "aligeromachine", email = "aligeromachine@github.com" }]
-maintainers = [{ name = "aligeromachine", email = "aligeromachine@github.com" }]
 license-files = ["LICENSE"]
+authors = [
+    { name = "aligeromachine", email = "aligeromachine@github.com" }
+]
+maintainers = [
+    { name = "aligeromachine", email = "aligeromachine@github.com" }
+]
 requires-python = ">=3.14"
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -29,13 +28,11 @@ dependencies = [
     "urllib3>=2.5.0",
 ]
 
-
 [project.urls]
-homepage = "https://reqmachine.org/"
+Homepage = "https://reqmachine.org/"
 documentation = "https://github.com/aligeromachine/reqmachine/docs"
 repository = "https://github.com/aligeromachine/reqmachine"
 changelog = "https://github.com/aligeromachine/reqmachine/blob/main/CHANGES.md"
-
 
 [dependency-groups]
 dev = [
