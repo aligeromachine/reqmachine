@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 
 [[package]]
@@ -254,13 +254,11 @@ wheels = [
 
 [[package]]
 name = "reqmachine"
-version = "0.1.0"
-source = { virtual = "." }
+version = "0.0.1"
+source = { editable = "." }
 dependencies = [
     { name = "orjson" },
-    { name = "pytest" },
     { name = "requests" },
-    { name = "responses" },
     { name = "urllib3" },
 ]
 
@@ -275,9 +273,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "orjson", specifier = ">=3.11.9" },
-    { name = "pytest", specifier = ">=9.2.0" },
     { name = "requests", specifier = ">=2.34.2" },
-    { name = "responses", specifier = ">=0.26.3" },
     { name = "urllib3", specifier = ">=2.5.0" },
 ]
 

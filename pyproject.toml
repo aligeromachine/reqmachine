@@ -1,10 +1,15 @@
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"
+
 [project]
 name = "reqmachine"
-version = "0.1.0"
+version = "0.0.1"
 description = "A small requests-based HTTP client with retries, JSON parsing and file upload/download helpers."
 readme = "README.md"
 license = "MIT"
-license-files = ["LICENSE"]
+# license-files убран — файла LICENSE нет.
+# uv_build сам подхватит LICENSE*/COPYING*/NOTICE*, если они появятся в корне.
 authors = [
     { name = "aligeromachine", email = "aligeromachine@github.com" }
 ]
@@ -24,17 +29,15 @@ classifiers = [
 ]
 dependencies = [
     "orjson>=3.11.9",
-    "pytest>=9.2.0",
     "requests>=2.34.2",
-    "responses>=0.26.3",
     "urllib3>=2.5.0",
 ]
 
 [project.urls]
 Homepage = "https://reqmachine.org/"
-documentation = "https://github.com/aligeromachine/reqmachine/docs"
-repository = "https://github.com/aligeromachine/reqmachine"
-changelog = "https://github.com/aligeromachine/reqmachine/blob/main/CHANGES.md"
+Documentation = "https://github.com/aligeromachine/reqmachine/docs"
+Repository = "https://github.com/aligeromachine/reqmachine"
+Changelog = "https://github.com/aligeromachine/reqmachine/blob/main/CHANGES.md"
 
 [dependency-groups]
 dev = [
@@ -44,8 +47,9 @@ dev = [
     "ruff>=0.8.0",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["reqmachine"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.uv.build-backend]
+module-root = ""
+module-name = "reqmachine"
