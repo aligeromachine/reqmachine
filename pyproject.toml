@@ -24,7 +24,9 @@ classifiers = [
 ]
 dependencies = [
     "orjson>=3.11.9",
+    "pytest>=9.2.0",
     "requests>=2.34.2",
+    "responses>=0.26.3",
     "urllib3>=2.5.0",
 ]
 
