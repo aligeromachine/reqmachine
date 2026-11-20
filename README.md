@@ -1,3 +1,4 @@
+```markdown
 # Welcome to **`reqmachine`**
 
 A small [requests](https://requests.readthedocs.io/)-based HTTP client with
@@ -19,33 +20,76 @@ pip install reqmachine
 
 ## Usage
 
-### Context manager
+`@http_client` injects a fresh `HttpClient` as the first argument.
+`get/post/put/patch/delete` accept a type and return parsed data
+(`None` for an empty body), raising `HttpClientError` subclasses on
+failure. `http_get` / `http_post` are one-shot helpers.
 
 ```python
-from reqmachine import HttpClient
+from dataclasses import dataclass
+from reqmachine import HttpClient, http_client
 
-with HttpClient() as client:
-    users = client.get("https://jsonplaceholder.typicode.com/users")
-    posts = client.get("https://jsonplaceholder.typicode.com/posts")
-```
 
-`get/post/put/patch/delete` return parsed JSON (`None` for an empty
-response body) and raise `HttpClientError` subclasses on failure.
+@dataclass
+class Geo:
+    lat: str
+    lng: str
 
-### Decorators
 
-```python
-from reqmachine import HttpClient, http_client, http_get
+@dataclass
+class Address:
+    street: str
+    suite: str
+    city: str
+    zipcode: str
+    geo: Geo
+
+
+@dataclass
+class Company:
+    name: str
+    catchPhrase: str   # имя как в JSON (camelCase — валидный идентификатор Python)
+    bs: str
+
+
+@dataclass
+class User:
+    id: int
+    name: str
+    username: str
+    email: str
+    address: Address
+    phone: str
+    website: str
+    company: Company
+
+
+@dataclass
+class Post:
+    id: int
+    userId: int
+    title: str
+    body: str
+
 
 @http_client
-def fetch_users(client: HttpClient):
-    return client.get("https://jsonplaceholder.typicode.com/users")
+def fetch_posts(client: HttpClient):
+    users = client.get("https://jsonplaceholder.typicode.com/users", User)
+    if isinstance(users, list):
+        for it in users:
+            print(it.company)
+
+    posts = client.get("https://jsonplaceholder.typicode.com/posts", Post)
+    if isinstance(posts, list):
+        for it in posts:
+            print(it.title)
+
+
+if __name__ == "__main__":
+    fetch_posts()
 ```
 
-`@http_client` injects a fresh `HttpClient` as the first argument;
-`http_get` / `http_post` are one-shot helpers that open a client per call.
-
-### Tuning
+## Tuning
 
 ```python
 from reqmachine import HttpClient
@@ -57,67 +101,6 @@ client = HttpClient(
     headers={"Authorization": "Bearer <token>"},
 )
 ```
-
-Retries apply to `HEAD/GET/PUT/DELETE/OPTIONS/TRACE` on statuses
-`429, 500, 502, 503, 504` (see `Config`).
-
-### Files
-
-```python
-from pathlib import Path
-from reqmachine import HttpClient
-
-with HttpClient() as client:
-    client.upload_file("https://example.com/upload", Path("data.bin"), tags=["x"])
-    client.download_file("https://example.com/file", Path("out/file.bin"))
-```
-
-`upload_file` sends the file as multipart with a JSON metadata field
-(`JSONData` by default) and uses a longer timeout.
-
-## Error types
-
-Errors are raised, not swallowed — all of them derive from
-`HttpClientError`:
-
-| Exception | When |
-|---|---|
-| `HttpStatusError` | Response status is not 2xx/3xx (`.status`, `.response`) |
-| `HttpConnectionError` | Could not establish a connection |
-| `HttpTimeoutError` | Connect/read timeout |
-| `HttpDecodeError` | Response body is not valid JSON |
-| `HttpClientError` | Base class / any other requests error |
-
-```python
-from reqmachine import HttpClient, HttpTimeoutError, HttpStatusError
-
-with HttpClient() as client:
-    try:
-        data = client.get("https://example.com/api")
-    except HttpStatusError as e:
-        print("server said", e.status)
-    except HttpTimeoutError:
-        print("too slow")
-```
-
-`upload_file` / `download_file` raise the same exceptions and return
-`True` on success. `is_url_available()` never raises — it returns
-`False` on any network error.
-
-## Development
-
-```bash
-uv sync
-uv run ruff check .
-uv run pytest
-```
-
-Быстрая проверка проброса ошибок без pytest/responses/сети:
-
-```bash
-python3 scripts/smoke_offline.py
-```
-
 ### Test service (Django)
 
 `service/` contains a small Django app that implements every endpoint
@@ -145,18 +128,48 @@ uv run python service/manage.py runserver 8000
 
 Example with the client:
 
+
+## Files
+
 ```python
+from pathlib import Path
 from reqmachine import HttpClient
 
-with HttpClient(verify=False) as client:
-    print(client.get("http://127.0.0.1:8000/api/json/"))
-    client.upload_file("http://127.0.0.1:8000/api/upload/", path, tags=["demo"])
-    client.download_file("http://127.0.0.1:8000/api/payload/", out)
+with HttpClient() as client:
+    client.upload_file("https://example.com/upload", Path("data.bin"))
+    client.download_file("https://example.com/file", Path("out/file.bin"))
 ```
 
-Service tests: `uv run python service/manage.py test api`
+`upload_file` sends the file as multipart with a JSON metadata field
+(`JSONData` by default). Both return `True` on success.
+
+## Errors
+
+All exceptions derive from `HttpClientError`:
+
+| Exception | When |
+|---|---|
+| `HttpStatusError` | Status is not 2xx/3xx (`.status`, `.response`) |
+| `HttpConnectionError` | Connection could not be established |
+| `HttpTimeoutError` | Connect/read timeout |
+| `HttpDecodeError` | Body is not valid JSON |
+
+`is_url_available()` never raises — returns `False` on any network error.
+
+## Development
+
+```bash
+uv sync
+uv run ruff check .
+uv run pytest
+```
+
+Local Django test service (`service/`, serves every endpoint scenario):
+
+```bash
+uv run python service/manage.py runserver 8000
+```
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
-

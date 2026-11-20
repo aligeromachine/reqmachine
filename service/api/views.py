@@ -159,7 +159,6 @@ def upload(request):
             "filename": file.name,
             "stored_as": stored,
             "size": file.size,
-            "tags": meta.get("tags"),
         },
         status=201,
     )

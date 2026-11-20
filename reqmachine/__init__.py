@@ -4,16 +4,16 @@ Retries, JSON parsing (orjson), file upload/download helpers and
 convenience decorators on top of :mod:`requests`.
 """
 
-from .config import Config
-from .errors import (
+from .src.config import Config
+from .src.errors import (
     HttpClientError,
     HttpConnectionError,
     HttpDecodeError,
     HttpStatusError,
     HttpTimeoutError,
 )
-from .http_client import HttpClient, http_client, http_get, http_post
-from .types import JsonDict, JsonList, JsonValue
+from .client import HttpClient, http_client, http_get, http_post
+from .src.types import JsonDict, JsonList, JsonValue
 
 __version__ = "0.1.0"
 

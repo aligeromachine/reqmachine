@@ -14,15 +14,17 @@ from requests.exceptions import (
     Timeout as ReqTimeout,
 )
 
-from .config import Config
-from .errors import (
+from reqmachine.src.adapter import DictValidator, ListValidator
+
+from .src.config import Config
+from .src.errors import (
     HttpClientError,
     HttpConnectionError,
     HttpDecodeError,
     HttpStatusError,
     HttpTimeoutError,
 )
-from .types import (
+from .src.types import (
     ResponseFunc,
     ResponseRequest,
     P
@@ -103,9 +105,25 @@ class HttpClient:
                 response=response,
             ) from exc
 
+    # ─── Валидация ───
+    
+    def _validate[T](self, response: ResponseRequest, Model: type[T]) -> T | list[T] | None:
+        if not response:
+            return None
+
+        if isinstance(response, dict):
+            validate_dict = DictValidator(Model)
+            return validate_dict(response)
+
+        if isinstance(response, list):
+            validate_list = ListValidator(Model)
+            return validate_list(response)
+
+        return None
+
     # ─── Низкоуровневый запрос ───
 
-    def _request(self, method: str, url: str, **kwargs: Any) -> ResponseRequest:
+    def _request[T](self, method: str, url: str, Model: type[T], **kwargs: Any) -> T | list[T] | None:
         if kwargs.get("stream"):
             raise ValueError(
                 "stream=True is not supported here; "
@@ -115,8 +133,8 @@ class HttpClient:
         kwargs.setdefault("timeout", self.timeout)
 
         try:
-            response = self.session.request(method, url, **kwargs)
-            response.raise_for_status()
+            rsp = self.session.request(method, url, **kwargs)
+            rsp.raise_for_status()
         except HTTPError as exc:
             r = exc.response
             status = r.status_code if r is not None else None
@@ -139,57 +157,66 @@ class HttpClient:
                 f"Request failed {method} {url}: {exc}", url=url
             ) from exc
 
-        return self._parse(response)
+        response = self._parse(rsp)
+
+        return self._validate(response=response, Model=Model)
 
     # ─── HTTP-методы ───
 
-    def get(
+    def get[T](
         self,
         url: str,
+        Model: type[T],
         params: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> ResponseRequest:
-        return self._request("GET", url, params=params, **kwargs)
+    ) -> T | list[T] | None:
+        return self._request("GET", url, Model=Model, params=params, **kwargs)
 
-    def post(
+    def post[T](
         self,
         url: str,
+        Model: type[T],
         *,
         json: Any = None,
         data: Any = None,
         files: Any = None,
         **kwargs: Any,
-    ) -> ResponseRequest:
+    ) -> T | list[T] | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
-        return self._request("POST", url, json=json, data=data, files=files, **kwargs)
+        return self._request("POST", url, Model=Model, json=json, data=data, files=files, **kwargs)
 
-    def put(
+    def put[T](
         self,
         url: str,
+        Model: type[T],
         *,
         json: Any = None,
         data: Any = None,
         **kwargs: Any,
-    ) -> ResponseRequest:
+    ) -> T | list[T] | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
-        return self._request("PUT", url, json=json, data=data, **kwargs)
+        return self._request("PUT", url, Model=Model, json=json, data=data, **kwargs)
 
-    def patch(
+    def patch[T](
         self,
         url: str,
+        Model: type[T],
         *,
         json: Any = None,
         data: Any = None,
         **kwargs: Any,
-    ) -> ResponseRequest:
+    ) -> T | list[T] | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
-        return self._request("PATCH", url, json=json, data=data, **kwargs)
+        return self._request("PATCH", url, Model=Model, json=json, data=data, **kwargs)
 
-    def delete(self, url: str, **kwargs: Any) -> ResponseRequest:
-        return self._request("DELETE", url, **kwargs)
+    def delete[T](
+        self, url: str, 
+        Model: type[T],
+        **kwargs: Any) -> T | list[T] | None:
+        return self._request("DELETE", url, Model=Model, **kwargs)
 
     # ─── Проверка доступности ───
 
@@ -216,18 +243,14 @@ class HttpClient:
         self,
         url: str,
         filein: Path,
-        meta_field: str = "JSONData",
-        tags: Any = None,
+        key: str | None = None,
+        meta: dict | None = None,
     ) -> bool:
         """Загружает файл. Бросает HttpClientError при ошибке."""
         try:
             with filein.open("rb") as fr:
                 files = {"file": (filein.name, fr, "application/octet-stream")}
-                data = {
-                    meta_field: orjson.dumps(
-                        {"filename": filein.name, "tags": tags}
-                    )
-                }
+                data = {key: orjson.dumps(meta)} if key else None
                 rsp = self.session.post(
                     url,
                     files=files,
@@ -261,7 +284,7 @@ class HttpClient:
     def download_file(
         self, url: str,
         fileout: Path
-        ) -> bool:
+    ) -> bool:
         fileout.parent.mkdir(parents=True, exist_ok=True)
         try:
             with self.session.get(url, stream=True, timeout=self.upload_timeout) as rsp:
@@ -294,43 +317,44 @@ class HttpClient:
 
         return True
     
-def http_client(
-    func: Callable[Concatenate[HttpClient, P], ResponseFunc]
-    ) -> Callable[P, ResponseFunc]:
+def http_client[**P, R](
+        func: Callable[Concatenate[HttpClient, P], R]
+    ) -> Callable[P, R]:
     @wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseFunc:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         with HttpClient() as client:
-            # kwargs.setdefault('client', client)
             return func(client, *args, **kwargs)
     return wrapper
 
 @http_client
-def http_get(client: HttpClient, url: str, data: dict | None = None) -> ResponseRequest:
-    return client.get(url, data)
+def http_get[T](client: HttpClient, url: str, Model: type[T], data: dict | None = None) -> T | list[T] | None:
+    return client.get(url, Model, data)
 
 @http_client
-def http_post(client: HttpClient, url: str, json: dict | None = None) -> ResponseRequest:
-    return client.post(url, json=json)
+def http_post[T](client: HttpClient, url: str, Model: type[T], json: dict | None = None) -> T | list[T] | None:
+    return client.post(url, Model, json=json)
 
 
 # USE CASE
 # from typing import Any
 # from request.http_client import HttpClient, http_client, http_get
 
+# from dataclasses import dataclass
+# from functools import partial
+
+
+# @dataclass
+# class User:
+#     id: int
+#     name: str
+
 # @http_client
 # def fetch_posts(client: HttpClient, *args: Any, **kwargs: Any):
-#     respo = client.get("https://jsonplaceholder.typicode.com/users")
+#     respo = client.get("https://jsonplaceholder.typicode.com/users", User)
 #     print(respo)
 #     respo = client.get("https://jsonplaceholder.typicode.com/posts")
 #     print(respo)
 
-# def main():
-
-#     # respo = http_get("https://jsonplaceholder.typicode.com//users")
-#     # print(respo)
-
-#     respo = http_get("https://jsonplaceholder.typicode.com/posts2")
-#     print(respo)
 
 # if __name__ == "__main__":
-#     main()
+#     fetch_posts()

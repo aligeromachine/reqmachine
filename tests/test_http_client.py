@@ -1,3 +1,4 @@
+
 import json
 from pathlib import Path
 
@@ -5,6 +6,7 @@ import pytest
 import responses
 from requests.exceptions import ConnectionError as ReqConnectionError, InvalidSchema, Timeout
 
+from dataclasses import dataclass
 from reqmachine import (
     HttpClient,
     HttpConnectionError,
@@ -13,6 +15,17 @@ from reqmachine import (
     HttpStatusError,
     HttpTimeoutError,
 )
+
+@dataclass
+class GetJson:
+    __test__ = False
+    ok: bool | int
+
+
+@dataclass
+class PostJson:
+    __test__ = False
+    id: int
 
 URL = "http://127.0.0.1:8000/"
 
@@ -30,13 +43,13 @@ def client():
 @responses.activate
 def test_get_json_returns_parsed(client):
     responses.add(responses.GET, URL, json={"ok": True}, status=200)
-    assert client.get(URL) == {"ok": True}
-
+    val = client.get(URL, GetJson)
+    assert val == GetJson(**{"ok": True})
 
 @responses.activate
 def test_get_empty_body_returns_none(client):
     responses.add(responses.GET, URL, body=b"", status=204)
-    assert client.get(URL) is None
+    assert client.get(URL, GetJson) is None
 
 
 @responses.activate
@@ -46,7 +59,7 @@ def test_get_non_json_raises_decode_error(client):
         content_type="text/html",
     )
     with pytest.raises(HttpDecodeError):
-        client.get(URL)
+        client.get(URL, GetJson)
 
 
 @responses.activate
@@ -56,14 +69,14 @@ def test_get_invalid_json_raises_decode_error(client):
         content_type="application/json",
     )
     with pytest.raises(HttpDecodeError):
-        client.get(URL)
+        client.get(URL, GetJson)
 
 
 @responses.activate
 def test_get_http_error_raises_status_error(client):
     responses.add(responses.GET, URL, json={"error": "boom"}, status=500)
     with pytest.raises(HttpStatusError) as ei:
-        client.get(URL)
+        client.get(URL, GetJson)
     assert ei.value.status == 500
     assert ei.value.url == URL
 
@@ -74,26 +87,26 @@ def test_get_connection_error_raises_connection_error(client):
         responses.GET, URL, body=ReqConnectionError("refused"),
     )
     with pytest.raises(HttpConnectionError):
-        client.get(URL)
+        client.get(URL, GetJson)
 
 
 @responses.activate
 def test_get_timeout_raises_timeout_error(client):
     responses.add(responses.GET, URL, body=Timeout("slow"))
     with pytest.raises(HttpTimeoutError):
-        client.get(URL)
+        client.get(URL, GetJson)
 
 
 @responses.activate
 def test_get_other_request_error_raises_client_error(client):
     responses.add(responses.GET, URL, body=InvalidSchema("bad url"))
     with pytest.raises(HttpClientError):
-        client.get(URL)
+        client.get(URL, GetJson)
 
 
 def test_request_rejects_stream(client):
     with pytest.raises(ValueError):
-        client._request("GET", URL, stream=True)
+        client._request("GET", URL, GetJson, stream=True)
 
 
 # ─────────────────────────── post / put / patch / delete ───────────────────────────
@@ -101,8 +114,8 @@ def test_request_rejects_stream(client):
 @responses.activate
 def test_post_json(client):
     responses.add(responses.POST, URL, json={"id": 1}, status=201)
-    r = client.post(URL, json={"name": "a"})
-    assert r == {"id": 1}
+    r = client.post(URL, PostJson, json={"name": "a"})
+    assert r == PostJson(**{"id": 1})
     sent = json.loads(responses.calls[0].request.body)
     assert sent == {"name": "a"}
 
@@ -110,13 +123,13 @@ def test_post_json(client):
 @responses.activate
 def test_post_data(client):
     responses.add(responses.POST, URL, json={}, status=200)
-    client.post(URL, data={"x": "1"})
+    client.post(URL, PostJson, data={"x": "1"})
     assert responses.calls[0].request.body == "x=1"
 
 
 def test_post_json_and_data_conflict(client):
     with pytest.raises(ValueError):
-        client.post(URL, json={"a": 1}, data={"b": 2})
+        client.post(URL, PostJson, json={"a": 1}, data={"b": 2})
 
 
 @responses.activate
@@ -124,9 +137,9 @@ def test_put_patch_delete(client):
     responses.add(responses.PUT, URL, json={"ok": 1})
     responses.add(responses.PATCH, URL, json={"ok": 2})
     responses.add(responses.DELETE, URL, json={"ok": 3})
-    assert client.put(URL, json={}) == {"ok": 1}
-    assert client.patch(URL, json={}) == {"ok": 2}
-    assert client.delete(URL) == {"ok": 3}
+    assert client.put(URL, GetJson, json={}) == GetJson(**{"ok": 1})
+    assert client.patch(URL, GetJson, json={}) == GetJson(**{"ok": 2})
+    assert client.delete(URL, GetJson) == GetJson(**{"ok": 3})
 
 
 # ─────────────────────────── is_url_available ───────────────────────────
@@ -172,15 +185,16 @@ def _make_file(tmp_path: Path, content: bytes = b"hello") -> Path:
     return f
 
 
+META_FIELD = "JSONData"  #  HttpClient.upload_file
 @responses.activate
 def test_upload_file_ok(client, tmp_path):
     responses.add(responses.POST, URL, json={"ok": 1}, status=200)
     f = _make_file(tmp_path)
-    assert client.upload_file(URL, f, tags=["t1"]) is True
+    assert client.upload_file(URL, f, key=META_FIELD, meta={"data": "hello"}) is True
 
     req = responses.calls[0].request
     assert b'filename="f.bin"' in req.body  # multipart
-    assert b'"tags"' in req.body and b'"t1"' in req.body
+    assert b'"data"' in req.body
 
 
 @responses.activate
