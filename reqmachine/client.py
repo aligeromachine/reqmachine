@@ -24,11 +24,7 @@ from .src.errors import (
     HttpStatusError,
     HttpTimeoutError,
 )
-from .src.types import (
-    ResponseFunc,
-    ResponseRequest,
-    P
-)
+from .src.types import ResponseRequest
 
 # ─────────────────────────── Клиент ───────────────────────────
 

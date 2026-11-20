@@ -159,6 +159,7 @@ def upload(request):
             "filename": file.name,
             "stored_as": stored,
             "size": file.size,
+            "meta": meta
         },
         status=201,
     )

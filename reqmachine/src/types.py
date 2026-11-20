@@ -1,4 +1,4 @@
-from typing import ParamSpec, TypeAlias
+from typing import TypeAlias
 
 # ─────────────────────────── Типы ───────────────────────────
 
@@ -8,6 +8,3 @@ JsonList: TypeAlias = list[JsonDict | str | int | float | bool]
 JsonValue: TypeAlias = bool | int | float | str | bytes | None  | dict | list
 ResponseRequest: TypeAlias = JsonValue
 
-ResponseFunc: TypeAlias = JsonValue
-
-P = ParamSpec("P")
