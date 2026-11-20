@@ -1,4 +1,3 @@
-```markdown
 # Welcome to **`reqmachine`**
 
 A small [requests](https://requests.readthedocs.io/)-based HTTP client with
@@ -6,9 +5,6 @@ retries, JSON parsing ([orjson](https://github.com/ijl/orjson)) and file
 upload/download helpers.
 
 Requires Python **3.14+**.
-
-> [!CAUTION]
-> `reqmachine` is a Work In Progress (WIP)
 
 ## Install
 
