@@ -5,6 +5,7 @@ from typing import Any
 
 import msgspec
 
+
 class _ContainerValidator[T, I, O]:
     """Общая часть для валидаторов контейнеров.
 
@@ -13,7 +14,7 @@ class _ContainerValidator[T, I, O]:
     - O — тип результата (T для dict, list[T] для list, ...).
     """
 
-    __slots__ = ("_model", "_convert", "_strict")
+    __slots__ = ("_convert", "_model", "_strict")
 
     _expected_type: type  # переопределяется в наследниках
 

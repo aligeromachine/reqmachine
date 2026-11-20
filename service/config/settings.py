@@ -4,8 +4,8 @@
 Это дев-сервис: без CSRF, с DEBUG по умолчанию и пустым списком хостов.
 Не публиковать как есть в продакшн.
 """
-from pathlib import Path
 import os
+from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 

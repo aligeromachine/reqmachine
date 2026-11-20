@@ -1,9 +1,12 @@
 # ─────────────────────────── Конфиг ───────────────────────────
 
+from typing import ClassVar
+
+
 class Config:
     API_TIMEOUT: tuple[float, float] = (3.0, 60.0)
     API_UPLOAD_TIMEOUT: tuple[float, float] = (10.0, 600.0)
-    API_HEADERS: dict[str, str] = {
+    API_HEADERS: ClassVar[dict[str, str]] = {
         "Cache-Control": "no-cache",
         "Accept": "*/*",
     }

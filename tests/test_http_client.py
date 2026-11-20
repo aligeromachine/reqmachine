@@ -1,33 +1,33 @@
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 import responses
-from requests.exceptions import ConnectionError as ReqConnectionError, InvalidSchema, Timeout
+from requests.exceptions import ConnectionError as ReqConnectionError
+from requests.exceptions import InvalidSchema, Timeout
 
-from dataclasses import dataclass
 from reqmachine import (
     HttpClient,
+    HttpClientError,
     HttpConnectionError,
     HttpDecodeError,
-    HttpClientError,
     HttpStatusError,
     HttpTimeoutError,
 )
+
+URL = "http://127.0.0.1:8000/"
 
 @dataclass
 class GetJson:
     __test__ = False
     ok: bool | int
 
-
 @dataclass
 class PostJson:
     __test__ = False
     id: int
-
-URL = "http://127.0.0.1:8000/"
 
 # ─────────────────────────── Фикстуры ───────────────────────────
 
@@ -44,7 +44,7 @@ def client():
 def test_get_json_returns_parsed(client):
     responses.add(responses.GET, URL, json={"ok": True}, status=200)
     val = client.get(URL, GetJson)
-    assert val == GetJson(**{"ok": True})
+    assert val == GetJson(ok=True)
 
 @responses.activate
 def test_get_empty_body_returns_none(client):
@@ -115,7 +115,7 @@ def test_request_rejects_stream(client):
 def test_post_json(client):
     responses.add(responses.POST, URL, json={"id": 1}, status=201)
     r = client.post(URL, PostJson, json={"name": "a"})
-    assert r == PostJson(**{"id": 1})
+    assert r == PostJson(id=1)
     sent = json.loads(responses.calls[0].request.body)
     assert sent == {"name": "a"}
 
@@ -137,9 +137,9 @@ def test_put_patch_delete(client):
     responses.add(responses.PUT, URL, json={"ok": 1})
     responses.add(responses.PATCH, URL, json={"ok": 2})
     responses.add(responses.DELETE, URL, json={"ok": 3})
-    assert client.put(URL, GetJson, json={}) == GetJson(**{"ok": 1})
-    assert client.patch(URL, GetJson, json={}) == GetJson(**{"ok": 2})
-    assert client.delete(URL, GetJson) == GetJson(**{"ok": 3})
+    assert client.put(URL, GetJson, json={}) == GetJson(ok=1)
+    assert client.patch(URL, GetJson, json={}) == GetJson(ok=2)
+    assert client.delete(URL, GetJson) == GetJson(ok=3)
 
 
 # ─────────────────────────── is_url_available ───────────────────────────

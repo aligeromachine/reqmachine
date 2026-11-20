@@ -1,18 +1,23 @@
+from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Callable, Any, Self, Concatenate
+from typing import Any, Concatenate, Self
 
 import orjson
 import requests
 import urllib3
-from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from requests.exceptions import (
     ConnectionError as ReqConnectionError,
+)
+from requests.exceptions import (
     HTTPError,
     RequestException,
+)
+from requests.exceptions import (
     Timeout as ReqTimeout,
 )
+from urllib3.util.retry import Retry
 
 from reqmachine.src.adapter import DictValidator, ListValidator
 
