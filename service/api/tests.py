@@ -108,10 +108,9 @@ class AvailabilityTests(TestCase):
     def test_error_is_500_on_head_too(self):
         self.assertEqual(self.client.head("/api/error/").status_code, 500)
 
-
 class UploadDownloadTests(TestCase):
     """upload_file / download_file: multipart с JSONData и streaming-отдача."""
-
+    
     def setUp(self):
         # изолированный MEDIA_ROOT, чтобы тесты не засоряли service/media/
         tmp = tempfile.mkdtemp()
@@ -119,7 +118,7 @@ class UploadDownloadTests(TestCase):
         override.enable()
         self.addCleanup(override.disable)
 
-    def _upload(self, name="f.bin", content=b"hello", meta='{"filename": "f.bin", "tags": ["t1"]}'):
+    def _upload(self, name="f.bin", content=b"hello", meta='{"filename": "f.bin", "payload": ["t1"]}'):
         return self.client.post(
             "/api/upload/",
             {"file": SimpleUploadedFile(name, content), "JSONData": meta},
@@ -132,7 +131,7 @@ class UploadDownloadTests(TestCase):
         self.assertEqual(body["ok"], 1)
         self.assertEqual(body["filename"], "f.bin")
         self.assertEqual(body["size"], 5)
-        self.assertEqual(body["tags"], ["t1"])
+        self.assertEqual(body["meta"], {"filename": "f.bin", "payload": ["t1"]})
         self.assertTrue(default_storage.exists(f"uploads/{body['stored_as'].split('/')[-1]}"))
 
     def test_upload_missing_file(self):
