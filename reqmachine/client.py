@@ -33,6 +33,7 @@ from .errors.errors import (
 
 # ─────────────────────────── Клиент ───────────────────────────
 
+
 class HttpClient:
     def __init__(
         self,
@@ -100,8 +101,10 @@ class HttpClient:
             ) from exc
 
     # ─── Валидация ───
-    
-    def _validate[T](self, response: ResponseRequest, Model: type[T]) -> T | list[T] | bytes | None:
+
+    def _validate[T](
+        self, response: ResponseRequest, Model: type[T]
+    ) -> T | list[T] | bytes | None:
         if not response:
             return None
 
@@ -117,7 +120,9 @@ class HttpClient:
 
     # ─── Низкоуровневый запрос ───
 
-    def _request[T](self, method: str, url: str, Model: type[T], **kwargs: Any) -> T | list[T] | bytes | None:
+    def _request[T](
+        self, method: str, url: str, Model: type[T], **kwargs: Any
+    ) -> T | list[T] | bytes | None:
         if kwargs.get("stream"):
             raise ValueError(
                 "stream=True is not supported here; "
@@ -139,9 +144,7 @@ class HttpClient:
                 response=r,
             ) from exc
         except ReqTimeout as exc:
-            raise HttpTimeoutError(
-                f"Timeout {method} {url}: {exc}", url=url
-            ) from exc
+            raise HttpTimeoutError(f"Timeout {method} {url}: {exc}", url=url) from exc
         except ReqConnectionError as exc:
             raise HttpConnectionError(
                 f"Connection error {method} {url}: {exc}", url=url
@@ -178,7 +181,9 @@ class HttpClient:
     ) -> T | list[T] | bytes | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
-        return self._request("POST", url, Model=Model, json=json, data=data, files=files, **kwargs)
+        return self._request(
+            "POST", url, Model=Model, json=json, data=data, files=files, **kwargs
+        )
 
     def put[T](
         self,
@@ -207,18 +212,15 @@ class HttpClient:
         return self._request("PATCH", url, Model=Model, json=json, data=data, **kwargs)
 
     def delete[T](
-        self, url: str, 
-        Model: type[T],
-        **kwargs: Any) -> T | list[T] | bytes | None:
+        self, url: str, Model: type[T], **kwargs: Any
+    ) -> T | list[T] | bytes | None:
         return self._request("DELETE", url, Model=Model, **kwargs)
 
     # ─── Проверка доступности ───
 
     def is_url_available(self, url: str) -> bool:
         try:
-            rsp = self.session.head(
-                url, timeout=self.timeout, allow_redirects=True
-            )
+            rsp = self.session.head(url, timeout=self.timeout, allow_redirects=True)
             # Некоторые сервера отдают 405 на HEAD — пробуем GET
             if rsp.status_code == 405:
                 rsp = self.session.get(
@@ -275,10 +277,7 @@ class HttpClient:
             ) from exc
         return True
 
-    def download_file(
-        self, url: str,
-        fileout: Path
-    ) -> bool:
+    def download_file(self, url: str, fileout: Path) -> bool:
         fileout.parent.mkdir(parents=True, exist_ok=True)
         try:
             with self.session.get(url, stream=True, timeout=self.upload_timeout) as rsp:
@@ -310,20 +309,28 @@ class HttpClient:
             ) from exc
 
         return True
-    
+
+
 def http_client[**P, R](
-        func: Callable[Concatenate[HttpClient, P], R]
-    ) -> Callable[P, R]:
+    func: Callable[Concatenate[HttpClient, P], R],
+) -> Callable[P, R]:
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         with HttpClient() as client:
             return func(client, *args, **kwargs)
+
     return wrapper
 
-@http_client
-def http_get[T](client: HttpClient, url: str, Model: type[T], data: dict | None = None) -> T | list[T] | bytes | None:
-    return client.get(url, Model, data)
 
 @http_client
-def http_post[T](client: HttpClient, url: str, Model: type[T], json: dict | None = None) -> T | list[T] | bytes | None:
+def http_get[T](
+    client: HttpClient, url: str, Model: type[T], data: dict | None = None
+) -> T | list[T] | bytes | None:
+    return client.get(url, Model, data)
+
+
+@http_client
+def http_post[T](
+    client: HttpClient, url: str, Model: type[T], json: dict | None = None
+) -> T | list[T] | bytes | None:
     return client.post(url, Model, json=json)

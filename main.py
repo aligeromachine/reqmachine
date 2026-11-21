@@ -9,9 +9,11 @@ from reqmachine import HttpClient, http_client
 class Timer:
     def __init__(self, name=""):
         self.name = name
+
     def __enter__(self):
         self.start = time.perf_counter()
         return self
+
     def __exit__(self, *exc):
         print(f"{self.name}: {time.perf_counter() - self.start:.4f} c")
 
@@ -34,7 +36,7 @@ class Address:
 @dataclass
 class Company:
     name: str
-    catchPhrase: str   # имя как в JSON (camelCase — валидный идентификатор Python)
+    catchPhrase: str  # имя как в JSON (camelCase — валидный идентификатор Python)
     bs: str
 
 
@@ -57,6 +59,7 @@ class Post:
     title: str
     body: str
 
+
 @http_client
 def fetch_posts(client: HttpClient):
     users = client.get("https://jsonplaceholder.typicode.com/users", User)
@@ -69,6 +72,7 @@ def fetch_posts(client: HttpClient):
         for it in posts:
             print(it.title)
 
+
 if __name__ == "__main__":
-    with Timer('fetch_posts') as _:
+    with Timer("fetch_posts") as _:
         fetch_posts()

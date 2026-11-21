@@ -59,3 +59,16 @@ module-name = "reqmachine"
 
 [tool.setuptools.package-data]
 reqmachine = ["py.typed"]
+
+[tool.ty]
+python-version = "3.12"
+
+[tool.ty.src]
+include = ["src", "tests"]
+exclude = ["src/generated"]
+
+[tool.ty.rules]
+# Отключить правило
+redundant-cast = "ignore"
+# Повысить предупреждение до ошибки
+possibly-missing-import = "error"

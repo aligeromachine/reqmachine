@@ -1,4 +1,3 @@
-
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,17 +18,21 @@ from reqmachine import (
 
 URL = "http://127.0.0.1:8000/"
 
+
 @dataclass
 class GetJson:
     __test__ = False
     ok: bool | int
+
 
 @dataclass
 class PostJson:
     __test__ = False
     id: int
 
+
 # ─────────────────────────── Фикстуры ───────────────────────────
+
 
 @pytest.fixture
 def client():
@@ -40,11 +43,13 @@ def client():
 
 # ─────────────────────────── _request / get ───────────────────────────
 
+
 @responses.activate
 def test_get_json_returns_parsed(client):
     responses.add(responses.GET, URL, json={"ok": True}, status=200)
     val = client.get(URL, GetJson)
     assert val == GetJson(ok=True)
+
 
 @responses.activate
 def test_get_empty_body_returns_none(client):
@@ -55,7 +60,10 @@ def test_get_empty_body_returns_none(client):
 @responses.activate
 def test_get_html_returns_bytes(client):
     responses.add(
-        responses.GET, URL, body="<html>oops</html>", status=200,
+        responses.GET,
+        URL,
+        body="<html>oops</html>",
+        status=200,
         content_type="text/html",
     )
     result = client.get(URL, GetJson)
@@ -63,10 +71,14 @@ def test_get_html_returns_bytes(client):
     assert isinstance(result, bytes)
     assert result == b"<html>oops</html>"
 
+
 @responses.activate
 def test_get_invalid_json_raises_decode_error(client):
     responses.add(
-        responses.GET, URL, body="{not json", status=200,
+        responses.GET,
+        URL,
+        body="{not json",
+        status=200,
         content_type="application/json",
     )
     with pytest.raises(HttpDecodeError):
@@ -85,7 +97,9 @@ def test_get_http_error_raises_status_error(client):
 @responses.activate
 def test_get_connection_error_raises_connection_error(client):
     responses.add(
-        responses.GET, URL, body=ReqConnectionError("refused"),
+        responses.GET,
+        URL,
+        body=ReqConnectionError("refused"),
     )
     with pytest.raises(HttpConnectionError):
         client.get(URL, GetJson)
@@ -111,6 +125,7 @@ def test_request_rejects_stream(client):
 
 
 # ─────────────────────────── post / put / patch / delete ───────────────────────────
+
 
 @responses.activate
 def test_post_json(client):
@@ -145,6 +160,7 @@ def test_put_patch_delete(client):
 
 # ─────────────────────────── is_url_available ───────────────────────────
 
+
 @responses.activate
 def test_is_url_available_true(client):
     responses.add(responses.HEAD, URL, status=200)
@@ -153,8 +169,7 @@ def test_is_url_available_true(client):
 
 @responses.activate
 def test_is_url_available_redirect_ok(client):
-    responses.add(responses.HEAD, URL, status=302,
-                  headers={"Location": URL + "/next"})
+    responses.add(responses.HEAD, URL, status=302, headers={"Location": URL + "/next"})
     responses.add(responses.HEAD, URL + "/next", status=200)
     assert client.is_url_available(URL) is True
 
@@ -180,6 +195,7 @@ def test_is_url_available_false_on_connection_error(client):
 
 # ─────────────────────────── upload_file ───────────────────────────
 
+
 def _make_file(tmp_path: Path, content: bytes = b"hello") -> Path:
     f = tmp_path / "f.bin"
     f.write_bytes(content)
@@ -187,6 +203,8 @@ def _make_file(tmp_path: Path, content: bytes = b"hello") -> Path:
 
 
 META_FIELD = "JSONData"  #  HttpClient.upload_file
+
+
 @responses.activate
 def test_upload_file_ok(client, tmp_path):
     responses.add(responses.POST, URL, json={"ok": 1}, status=200)
@@ -214,6 +232,7 @@ def test_upload_file_connection_error_raises(client, tmp_path):
 
 
 # ─────────────────────────── download_file ───────────────────────────
+
 
 @responses.activate
 def test_download_file_ok(client, tmp_path):
@@ -266,6 +285,7 @@ def test_download_file_iterates_chunks(client, tmp_path, monkeypatch):
 
 
 # ─────────────────────────── context manager ───────────────────────────
+
 
 def test_context_manager_closes_session(monkeypatch):
     closed = {"v": False}

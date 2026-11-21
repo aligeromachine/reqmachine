@@ -16,6 +16,7 @@
 | download_file (streaming)           | GET  /api/download/<name>/   |
 | фиксированный бинарный payload      | GET  /api/payload/           |
 """
+
 import orjson
 from django.core.files.storage import default_storage
 from django.http import (
@@ -30,6 +31,7 @@ from django.shortcuts import redirect
 from django.views.decorators.http import require_http_methods
 
 # ─────────────────────────── Простые ответы ───────────────────────────
+
 
 @require_http_methods(["GET", "HEAD"])
 def json_ok(request):
@@ -89,7 +91,9 @@ def fixed_payload(request):
         headers={"Content-Length": str(len(payload))},
     )
 
+
 # ─────────────────────────── Echo (POST/PUT/PATCH/DELETE) ───────────────────────────
+
 
 def _extract_body(request):
     """Разбирает тело запроса: JSON -> объект, form -> dict, иначе строка."""
@@ -120,8 +124,11 @@ def echo(request):
 
     status = 201 if request.method == "POST" else 200
     if request.method == "GET":
-        return JsonResponse({"method": "GET", "args": request.GET.dict()}, status=status)
+        return JsonResponse(
+            {"method": "GET", "args": request.GET.dict()}, status=status
+        )
     return JsonResponse({"method": request.method, "data": data}, status=status)
+
 
 # ─────────────────────────── Файлы ───────────────────────────
 
@@ -159,7 +166,7 @@ def upload(request):
             "filename": file.name,
             "stored_as": stored,
             "size": file.size,
-            "meta": meta
+            "meta": meta,
         },
         status=201,
     )

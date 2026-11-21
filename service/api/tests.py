@@ -68,12 +68,16 @@ class EchoTests(TestCase):
         self.assertEqual(r.json(), {"error": "invalid json"})
 
     def test_put_json(self):
-        r = self.client.put("/api/echo/", data='{"ok": 1}', content_type="application/json")
+        r = self.client.put(
+            "/api/echo/", data='{"ok": 1}', content_type="application/json"
+        )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json(), {"method": "PUT", "data": {"ok": 1}})
 
     def test_patch_json(self):
-        r = self.client.patch("/api/echo/", data='{"ok": 2}', content_type="application/json")
+        r = self.client.patch(
+            "/api/echo/", data='{"ok": 2}', content_type="application/json"
+        )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json(), {"method": "PATCH", "data": {"ok": 2}})
 
@@ -108,9 +112,10 @@ class AvailabilityTests(TestCase):
     def test_error_is_500_on_head_too(self):
         self.assertEqual(self.client.head("/api/error/").status_code, 500)
 
+
 class UploadDownloadTests(TestCase):
     """upload_file / download_file: multipart с JSONData и streaming-отдача."""
-    
+
     def setUp(self):
         # изолированный MEDIA_ROOT, чтобы тесты не засоряли service/media/
         tmp = tempfile.mkdtemp()
@@ -118,7 +123,12 @@ class UploadDownloadTests(TestCase):
         override.enable()
         self.addCleanup(override.disable)
 
-    def _upload(self, name="f.bin", content=b"hello", meta='{"filename": "f.bin", "payload": ["t1"]}'):
+    def _upload(
+        self,
+        name="f.bin",
+        content=b"hello",
+        meta='{"filename": "f.bin", "payload": ["t1"]}',
+    ):
         return self.client.post(
             "/api/upload/",
             {"file": SimpleUploadedFile(name, content), "JSONData": meta},
@@ -132,7 +142,9 @@ class UploadDownloadTests(TestCase):
         self.assertEqual(body["filename"], "f.bin")
         self.assertEqual(body["size"], 5)
         self.assertEqual(body["meta"], {"filename": "f.bin", "payload": ["t1"]})
-        self.assertTrue(default_storage.exists(f"uploads/{body['stored_as'].split('/')[-1]}"))
+        self.assertTrue(
+            default_storage.exists(f"uploads/{body['stored_as'].split('/')[-1]}")
+        )
 
     def test_upload_missing_file(self):
         r = self.client.post("/api/upload/", {"JSONData": "{}"})
@@ -140,7 +152,9 @@ class UploadDownloadTests(TestCase):
         self.assertIn("file", r.json()["error"])
 
     def test_upload_missing_meta(self):
-        r = self.client.post("/api/upload/", {"file": SimpleUploadedFile("f.bin", b"x")})
+        r = self.client.post(
+            "/api/upload/", {"file": SimpleUploadedFile("f.bin", b"x")}
+        )
         self.assertEqual(r.status_code, 400)
         self.assertIn("JSONData", r.json()["error"])
 

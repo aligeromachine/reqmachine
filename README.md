@@ -44,7 +44,7 @@ class Address:
 @dataclass
 class Company:
     name: str
-    catchPhrase: str   # имя как в JSON (camelCase — валидный идентификатор Python)
+    catchPhrase: str  # имя как в JSON (camelCase — валидный идентификатор Python)
     bs: str
 
 
@@ -91,9 +91,9 @@ if __name__ == "__main__":
 from reqmachine import HttpClient
 
 client = HttpClient(
-    verify=True,                       # TLS verification (default: off)
-    timeout=(3.0, 60.0),               # (connect, read)
-    retries=3,                         # urllib3 Retry total
+    verify=True,  # TLS verification (default: off)
+    timeout=(3.0, 60.0),  # (connect, read)
+    retries=3,  # urllib3 Retry total
     headers={"Authorization": "Bearer <token>"},
 )
 ```
