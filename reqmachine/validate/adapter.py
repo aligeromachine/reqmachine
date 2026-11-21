@@ -62,7 +62,7 @@ class DictValidator[T](_ContainerValidator[T, dict, T]):
     _expected_type = dict
 
     @staticmethod
-    def _resolve_target(Model: type[T]) -> Any:
+    def _resolve_target(Model: type[T]) -> type[T]:
         return Model
 
 
@@ -76,5 +76,5 @@ class ListValidator[T](_ContainerValidator[T, list, list[T]]):
     _expected_type = list
 
     @staticmethod
-    def _resolve_target(Model: type[T]) -> Any:
-        return list[Model]
+    def _resolve_target(Model: type[T]) -> type[list[T]]:
+        return list[Model]  # ty: ignore[invalid-type-form]

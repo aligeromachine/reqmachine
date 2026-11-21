@@ -322,14 +322,20 @@ def http_client[**P, R](
     return wrapper
 
 
-@http_client
+# ty не поддерживает higher-rank polymorphism для generic-функций,
+# декорируемых через `Callable[Concatenate[..., P], R]`.
+# Аннотация корректна, ограничение — в ty.
+@http_client  # ty: ignore[invalid-argument-type]
 def http_get[T](
     client: HttpClient, url: str, Model: type[T], data: dict | None = None
 ) -> T | list[T] | bytes | None:
     return client.get(url, Model, data)
 
 
-@http_client
+# ty не поддерживает higher-rank polymorphism для generic-функций,
+# декорируемых через `Callable[Concatenate[..., P], R]`.
+# Аннотация корректна, ограничение — в ty.
+@http_client  # ty: ignore[invalid-argument-type]
 def http_post[T](
     client: HttpClient, url: str, Model: type[T], json: dict | None = None
 ) -> T | list[T] | bytes | None:

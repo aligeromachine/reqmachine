@@ -8,13 +8,11 @@ version = "0.1.5"
 description = "A small requests-based HTTP client with retries, JSON parsing and file upload/download helpers."
 readme = "README.md"
 license = "MIT"
-# license-files убран — файла LICENSE нет.
-# uv_build сам подхватит LICENSE*/COPYING*/NOTICE*, если они появятся в корне.
 authors = [
-    { name = "aligeromachine", email = "aligeromachine@github.com" }
+    { name = "aligeromachine", email = "aligeromachine@users.noreply.github.com" }
 ]
 maintainers = [
-    { name = "aligeromachine", email = "aligeromachine@github.com" }
+    { name = "aligeromachine", email = "aligeromachine@users.noreply.github.com" }
 ]
 requires-python = ">=3.14"
 classifiers = [
@@ -30,9 +28,7 @@ classifiers = [
 dependencies = [
     "msgspec>=0.22.0",
     "orjson>=3.11.9",
-    "pytest>=9.2.0",
     "requests>=2.34.2",
-    "responses>=0.26.3",
     "urllib3>=2.5.0",
 ]
 
@@ -57,18 +53,12 @@ testpaths = ["tests"]
 module-root = ""
 module-name = "reqmachine"
 
-[tool.setuptools.package-data]
-reqmachine = ["py.typed"]
-
-[tool.ty]
-python-version = "3.12"
+[tool.ty.environment]
+python-version = "3.14"
 
 [tool.ty.src]
-include = ["src", "tests"]
-exclude = ["src/generated"]
+include = ["reqmachine", "tests"]
 
 [tool.ty.rules]
-# Отключить правило
 redundant-cast = "ignore"
-# Повысить предупреждение до ошибки
 possibly-missing-import = "error"

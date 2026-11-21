@@ -12,6 +12,19 @@ sync:
 add package:
     uv add {{package}}
 
+run:
+    uv run main.py
+
+lint:
+    uv run ruff check .
+    uv run ruff format --check .
+    uv run ty check
+
+# Отформатировать код и применить автоисправления
+fmt:
+    uv run ruff format .
+    uv run ruff check --fix .
+
 # Запустить тесты
 test *args:
     uv run pytest tests/ {{args}} -v
@@ -28,22 +41,10 @@ test-all: test test-srv
 serve:
 	uv run python service/manage.py runserver 8000
 
-lint:
-    uv run ruff check .
-    uv run ruff format --check .
-
-# Полная проверка перед коммитом (линт + тесты)
-check: lint test
-
-# Отформатировать код и применить автоисправления
-fmt:
-    uv run ruff format .
-    uv run ruff check --fix .
-
 build:
 	uv build
 
-check-pak *args: 
+check *args: 
     uv run --no-project --with dist/reqmachine-{{args}}-py3-none-any.whl python -c "from reqmachine import HttpClient; print('OK')"
 
 # Мягкая очистка: окружение и артефакты, лок-файл и кеш uv сохраняются

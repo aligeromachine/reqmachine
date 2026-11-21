@@ -132,7 +132,10 @@ def test_post_json(client):
     responses.add(responses.POST, URL, json={"id": 1}, status=201)
     r = client.post(URL, PostJson, json={"name": "a"})
     assert r == PostJson(id=1)
-    sent = json.loads(responses.calls[0].request.body)
+
+    body = responses.calls[0].request.body
+    assert isinstance(body, (bytes, bytearray, str)), "Ожидалось тело в виде bytes/str"
+    sent = json.loads(body)
     assert sent == {"name": "a"}
 
 
@@ -212,6 +215,8 @@ def test_upload_file_ok(client, tmp_path):
     assert client.upload_file(URL, f, key=META_FIELD, meta={"data": "hello"}) is True
 
     req = responses.calls[0].request
+    # Проверяем, что тело — это bytes, и ty это учтёт
+    assert isinstance(req.body, bytes), "Ожидалось тело в виде bytes"
     assert b'filename="f.bin"' in req.body  # multipart
     assert b'"data"' in req.body
 
