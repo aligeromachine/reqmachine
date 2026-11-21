@@ -19,17 +19,17 @@ from requests.exceptions import (
 )
 from urllib3.util.retry import Retry
 
-from reqmachine.src.adapter import DictValidator, ListValidator
+from reqmachine.validate.adapter import DictValidator, ListValidator
 
-from .src.config import Config
-from .src.errors import (
+from .core.config import Config
+from .core.types import ResponseRequest
+from .errors.errors import (
     HttpClientError,
     HttpConnectionError,
     HttpDecodeError,
     HttpStatusError,
     HttpTimeoutError,
 )
-from .src.types import ResponseRequest
 
 # ─────────────────────────── Клиент ───────────────────────────
 

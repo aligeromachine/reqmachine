@@ -5,18 +5,18 @@ convenience decorators on top of :mod:`requests`.
 """
 
 from .client import HttpClient, http_client, http_get, http_post
-from .src.adapter import DictValidator, ListValidator
-from .src.config import Config
-from .src.errors import (
+from .core.config import Config
+from .core.types import JsonDict, JsonList, JsonValue, ResponseRequest
+from .errors.errors import (
     HttpClientError,
     HttpConnectionError,
     HttpDecodeError,
     HttpStatusError,
     HttpTimeoutError,
 )
-from .src.types import JsonDict, JsonList, JsonValue, ResponseRequest
+from .validate.adapter import DictValidator, ListValidator
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 
 __all__ = [
     "Config",

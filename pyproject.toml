@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "reqmachine"
-version = "0.1.4"
+version = "0.1.5"
 description = "A small requests-based HTTP client with retries, JSON parsing and file upload/download helpers."
 readme = "README.md"
 license = "MIT"
@@ -56,3 +56,6 @@ testpaths = ["tests"]
 [tool.uv.build-backend]
 module-root = ""
 module-name = "reqmachine"
+
+[tool.setuptools.package-data]
+reqmachine = ["py.typed"]
