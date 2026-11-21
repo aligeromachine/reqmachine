@@ -10,9 +10,6 @@ sync: ## Установить зависимости (uv sync)
 lint: ## Линтер ruff
 	uv run ruff check .
 
-smoke: ## Офлайн smoke-тест клиента (без pytest/responses/сети)
-	python3 scripts/smoke_offline.py
-
 test: ## Тесты клиента (pytest)
 	uv run pytest
 
@@ -20,6 +17,7 @@ test-service: ## Тесты Django-сервиса
 	uv run python service/manage.py test api
 
 check: lint smoke test test-service ## Вся проверка: lint + smoke + pytest + Django
+	uv run --no-project --with dist/reqmachine-0.0.1-py3-none-any.whl python -c "from reqmachine import HttpClient; print('OK')"
 
 serve: ## Запустить Django-сервис на 127.0.0.1:8000
 	uv run python service/manage.py runserver 8000

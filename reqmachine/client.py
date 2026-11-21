@@ -89,14 +89,7 @@ class HttpClient:
         looks_json = head in (b"{", b"[") or "json" in ctype
 
         if not looks_json:
-            raise HttpDecodeError(
-                f"Non-JSON response from {response.url} "
-                f"(Content-Type: {ctype or 'unknown'}): "
-                f"{response.content[:200]!r}",
-                url=response.url,
-                response=response,
-            )
-
+            return response.content
         try:
             return orjson.loads(response.content)
         except orjson.JSONDecodeError as exc:
@@ -108,7 +101,7 @@ class HttpClient:
 
     # ─── Валидация ───
     
-    def _validate[T](self, response: ResponseRequest, Model: type[T]) -> T | list[T] | None:
+    def _validate[T](self, response: ResponseRequest, Model: type[T]) -> T | list[T] | bytes | None:
         if not response:
             return None
 
@@ -120,11 +113,11 @@ class HttpClient:
             validate_list = ListValidator(Model)
             return validate_list(response)
 
-        return None
+        return response
 
     # ─── Низкоуровневый запрос ───
 
-    def _request[T](self, method: str, url: str, Model: type[T], **kwargs: Any) -> T | list[T] | None:
+    def _request[T](self, method: str, url: str, Model: type[T], **kwargs: Any) -> T | list[T] | bytes | None:
         if kwargs.get("stream"):
             raise ValueError(
                 "stream=True is not supported here; "
@@ -170,7 +163,7 @@ class HttpClient:
         Model: type[T],
         params: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> T | list[T] | None:
+    ) -> T | list[T] | bytes | None:
         return self._request("GET", url, Model=Model, params=params, **kwargs)
 
     def post[T](
@@ -182,7 +175,7 @@ class HttpClient:
         data: Any = None,
         files: Any = None,
         **kwargs: Any,
-    ) -> T | list[T] | None:
+    ) -> T | list[T] | bytes | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
         return self._request("POST", url, Model=Model, json=json, data=data, files=files, **kwargs)
@@ -195,7 +188,7 @@ class HttpClient:
         json: Any = None,
         data: Any = None,
         **kwargs: Any,
-    ) -> T | list[T] | None:
+    ) -> T | list[T] | bytes | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
         return self._request("PUT", url, Model=Model, json=json, data=data, **kwargs)
@@ -208,7 +201,7 @@ class HttpClient:
         json: Any = None,
         data: Any = None,
         **kwargs: Any,
-    ) -> T | list[T] | None:
+    ) -> T | list[T] | bytes | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
         return self._request("PATCH", url, Model=Model, json=json, data=data, **kwargs)
@@ -216,7 +209,7 @@ class HttpClient:
     def delete[T](
         self, url: str, 
         Model: type[T],
-        **kwargs: Any) -> T | list[T] | None:
+        **kwargs: Any) -> T | list[T] | bytes | None:
         return self._request("DELETE", url, Model=Model, **kwargs)
 
     # ─── Проверка доступности ───
@@ -328,34 +321,9 @@ def http_client[**P, R](
     return wrapper
 
 @http_client
-def http_get[T](client: HttpClient, url: str, Model: type[T], data: dict | None = None) -> T | list[T] | None:
+def http_get[T](client: HttpClient, url: str, Model: type[T], data: dict | None = None) -> T | list[T] | bytes | None:
     return client.get(url, Model, data)
 
 @http_client
-def http_post[T](client: HttpClient, url: str, Model: type[T], json: dict | None = None) -> T | list[T] | None:
+def http_post[T](client: HttpClient, url: str, Model: type[T], json: dict | None = None) -> T | list[T] | bytes | None:
     return client.post(url, Model, json=json)
-
-
-# USE CASE
-# from typing import Any
-# from request.http_client import HttpClient, http_client, http_get
-
-# from dataclasses import dataclass
-# from functools import partial
-
-
-# @dataclass
-# class User:
-#     id: int
-#     name: str
-
-# @http_client
-# def fetch_posts(client: HttpClient, *args: Any, **kwargs: Any):
-#     respo = client.get("https://jsonplaceholder.typicode.com/users", User)
-#     print(respo)
-#     respo = client.get("https://jsonplaceholder.typicode.com/posts")
-#     print(respo)
-
-
-# if __name__ == "__main__":
-#     fetch_posts()

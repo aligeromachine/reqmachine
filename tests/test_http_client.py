@@ -53,14 +53,15 @@ def test_get_empty_body_returns_none(client):
 
 
 @responses.activate
-def test_get_non_json_raises_decode_error(client):
+def test_get_html_returns_bytes(client):
     responses.add(
         responses.GET, URL, body="<html>oops</html>", status=200,
         content_type="text/html",
     )
-    with pytest.raises(HttpDecodeError):
-        client.get(URL, GetJson)
+    result = client.get(URL, GetJson)
 
+    assert isinstance(result, bytes)
+    assert result == b"<html>oops</html>"
 
 @responses.activate
 def test_get_invalid_json_raises_decode_error(client):

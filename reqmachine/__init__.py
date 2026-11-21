@@ -5,6 +5,7 @@ convenience decorators on top of :mod:`requests`.
 """
 
 from .client import HttpClient, http_client, http_get, http_post
+from .src.adapter import DictValidator, ListValidator
 from .src.config import Config
 from .src.errors import (
     HttpClientError,
@@ -13,12 +14,13 @@ from .src.errors import (
     HttpStatusError,
     HttpTimeoutError,
 )
-from .src.types import JsonDict, JsonList, JsonValue
+from .src.types import JsonDict, JsonList, JsonValue, ResponseRequest
 
-__version__ = "0.1.0"
+__version__ = "0.1.3"
 
 __all__ = [
     "Config",
+    "DictValidator",
     "HttpClient",
     "HttpClientError",
     "HttpConnectionError",
@@ -28,6 +30,8 @@ __all__ = [
     "JsonDict",
     "JsonList",
     "JsonValue",
+    "ListValidator",
+    "ResponseRequest",
     "http_client",
     "http_get",
     "http_post",

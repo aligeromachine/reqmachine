@@ -303,12 +303,14 @@ wheels = [
 
 [[package]]
 name = "reqmachine"
-version = "0.1.1"
+version = "0.1.3"
 source = { editable = "." }
 dependencies = [
     { name = "msgspec" },
     { name = "orjson" },
+    { name = "pytest" },
     { name = "requests" },
+    { name = "responses" },
     { name = "urllib3" },
 ]
 
@@ -324,7 +326,9 @@ dev = [
 requires-dist = [
     { name = "msgspec", specifier = ">=0.22.0" },
     { name = "orjson", specifier = ">=3.11.9" },
+    { name = "pytest", specifier = ">=9.2.0" },
     { name = "requests", specifier = ">=2.34.2" },
+    { name = "responses", specifier = ">=0.26.3" },
     { name = "urllib3", specifier = ">=2.5.0" },
 ]
 
