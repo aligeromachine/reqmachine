@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "reqmachine"
-version = "0.1.3"
+version = "0.1.4"
 description = "A small requests-based HTTP client with retries, JSON parsing and file upload/download helpers."
 readme = "README.md"
 license = "MIT"

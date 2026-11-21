@@ -16,7 +16,7 @@ from .src.errors import (
 )
 from .src.types import JsonDict, JsonList, JsonValue, ResponseRequest
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 __all__ = [
     "Config",
