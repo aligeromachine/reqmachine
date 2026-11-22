@@ -30,7 +30,6 @@ from django.http import (
 from django.shortcuts import redirect
 from django.views.decorators.http import require_http_methods
 
-
 # ─────────────────────────── Простые ответы ───────────────────────────
 
 

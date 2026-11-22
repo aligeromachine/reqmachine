@@ -15,8 +15,8 @@ add package:
 run:
     uv run main.py
 
-lint:
-    uv run ruff check .
+lint *args:
+    uv run ruff check {{args}} .
     uv run ruff format --check .
     uv run ty check
 
