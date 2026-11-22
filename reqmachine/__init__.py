@@ -16,7 +16,7 @@ from .errors.errors import (
 )
 from .validate.adapter import DictValidator, ListValidator
 
-__version__ = "0.1.5"
+__version__ = "0.1.6"
 
 __all__ = [
     "Config",

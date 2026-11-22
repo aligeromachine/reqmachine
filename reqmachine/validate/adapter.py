@@ -45,11 +45,9 @@ class _ContainerValidator[T, I, O]:
             return self._convert(response, strict=self._strict)
         except msgspec.ValidationError as e:
             raise TypeError(
-                "Валидация %s[%s] не прошла: %s",
-                type(self).__name__,
-                self._model.__name__,
-                str(e),  # уже содержит путь: Expected `int`, got `str` - at `$[2].id`
-            )
+                f"Валидация {type(self).__name__}["
+                f"{self._model.__name__}] не прошла: {e}"
+            ) from e
 
 
 class DictValidator[T](_ContainerValidator[T, dict, T]):

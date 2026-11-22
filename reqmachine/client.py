@@ -3,7 +3,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Concatenate, Self
 
-import orjson
+import msgspec
 import requests
 import urllib3
 from requests.adapters import HTTPAdapter
@@ -22,7 +22,6 @@ from urllib3.util.retry import Retry
 from reqmachine.validate.adapter import DictValidator, ListValidator
 
 from .core.config import Config
-from .core.types import ResponseRequest
 from .errors.errors import (
     HttpClientError,
     HttpConnectionError,
@@ -81,7 +80,7 @@ class HttpClient:
 
     # ─── Парсинг ───
 
-    def _parse(self, response: requests.Response) -> ResponseRequest:
+    def _parse(self, response: requests.Response) -> dict | list | bytes | None:
         if not response.content:
             return None
 
@@ -91,9 +90,11 @@ class HttpClient:
 
         if not looks_json:
             return response.content
+
         try:
-            return orjson.loads(response.content)
-        except orjson.JSONDecodeError as exc:
+            # msgspec.json.decode принимает bytes и возвращает dict/list
+            return msgspec.json.decode(response.content)
+        except msgspec.DecodeError as exc:
             raise HttpDecodeError(
                 f"Invalid JSON from {response.url}: {exc}",
                 url=response.url,
@@ -103,7 +104,7 @@ class HttpClient:
     # ─── Валидация ───
 
     def _validate[T](
-        self, response: ResponseRequest, Model: type[T]
+        self, response: dict | list | bytes | None, Model: type[T]
     ) -> T | list[T] | bytes | None:
         if not response:
             return None
@@ -246,7 +247,7 @@ class HttpClient:
         try:
             with filein.open("rb") as fr:
                 files = {"file": (filein.name, fr, "application/octet-stream")}
-                data = {key: orjson.dumps(meta)} if key else None
+                data = {key: msgspec.json.encode(meta)} if key else None
                 rsp = self.session.post(
                     url,
                     files=files,
