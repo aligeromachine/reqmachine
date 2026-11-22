@@ -17,7 +17,7 @@
 | фиксированный бинарный payload      | GET  /api/payload/           |
 """
 
-import orjson
+import msgspec
 from django.core.files.storage import default_storage
 from django.http import (
     FileResponse,
@@ -29,6 +29,7 @@ from django.http import (
 )
 from django.shortcuts import redirect
 from django.views.decorators.http import require_http_methods
+
 
 # ─────────────────────────── Простые ответы ───────────────────────────
 
@@ -101,7 +102,7 @@ def _extract_body(request):
         return None
     ctype = request.content_type
     if "json" in ctype:
-        return orjson.loads(request.body)  # orjson.JSONDecodeError -> 400 в echo
+        return msgspec.json.decode(request.body)
     if "form" in ctype:
         # у POST multipart/urlencoded request.POST заполнен,
         # у PUT/PATCH тело придётся разобрать самим
@@ -119,7 +120,7 @@ def echo(request):
     """
     try:
         data = _extract_body(request)
-    except orjson.JSONDecodeError:
+    except msgspec.DecodeError:
         return JsonResponse({"error": "invalid json"}, status=400)
 
     status = 201 if request.method == "POST" else 200
@@ -152,8 +153,8 @@ def upload(request):
         return JsonResponse({"error": f"missing form field '{META_FIELD}'"}, status=400)
 
     try:
-        meta = orjson.loads(raw_meta)
-    except orjson.JSONDecodeError:
+        meta = msgspec.json.decode(raw_meta)
+    except msgspec.DecodeError:
         return JsonResponse({"error": f"invalid JSON in '{META_FIELD}'"}, status=400)
 
     if file.size > MAX_UPLOAD_SIZE:
