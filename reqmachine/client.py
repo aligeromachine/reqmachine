@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from functools import wraps
+from functools import cache, wraps
 from pathlib import Path
 from typing import Any, Concatenate, Self
 
@@ -29,6 +29,21 @@ from .errors.errors import (
     HttpStatusError,
     HttpTimeoutError,
 )
+
+# ─────────────────────────── Валидаторы ───────────────────────────
+
+
+@cache
+def _dict_validator(Model: type) -> DictValidator:
+    """Кэшированный DictValidator: msgspec.build не пересобирается на каждый ответ."""
+    return DictValidator(Model)
+
+
+@cache
+def _list_validator(Model: type) -> ListValidator:
+    """Кэшированный ListValidator: аналогично DictValidator."""
+    return ListValidator(Model)
+
 
 # ─────────────────────────── Клиент ───────────────────────────
 
@@ -93,13 +108,23 @@ class HttpClient:
 
         try:
             # msgspec.json.decode принимает bytes и возвращает dict/list
-            return msgspec.json.decode(response.content)
+            decoded = msgspec.json.decode(response.content)
         except msgspec.DecodeError as exc:
             raise HttpDecodeError(
                 f"Invalid JSON from {response.url}: {exc}",
                 url=response.url,
                 response=response,
             ) from exc
+
+        # Скалярный JSON ("ok", 123) не соответствует контракту
+        # dict | list — считаем это ошибкой декодирования.
+        if not isinstance(decoded, dict | list):
+            raise HttpDecodeError(
+                f"Expected JSON object or array from {response.url}, got {type(decoded).__name__}",
+                url=response.url,
+                response=response,
+            )
+        return decoded
 
     # ─── Валидация ───
 
@@ -110,12 +135,10 @@ class HttpClient:
             return None
 
         if isinstance(response, dict):
-            validate_dict = DictValidator(Model)
-            return validate_dict(response)
+            return _dict_validator(Model)(response)
 
         if isinstance(response, list):
-            validate_list = ListValidator(Model)
-            return validate_list(response)
+            return _list_validator(Model)(response)
 
         return response
 
@@ -244,6 +267,8 @@ class HttpClient:
         meta: dict | None = None,
     ) -> bool:
         """Загружает файл. Бросает HttpClientError при ошибке."""
+        if meta is not None and key is None:
+            raise ValueError("meta requires key: pass the form field name via key=")
         try:
             with filein.open("rb") as fr:
                 files = {"file": (filein.name, fr, "application/octet-stream")}
@@ -328,9 +353,9 @@ def http_client[**P, R](
 # Аннотация корректна, ограничение — в ty.
 @http_client  # ty: ignore[invalid-argument-type]
 def http_get[T](
-    client: HttpClient, url: str, Model: type[T], data: dict | None = None
+    client: HttpClient, url: str, Model: type[T], params: dict | None = None
 ) -> T | list[T] | bytes | None:
-    return client.get(url, Model, data)
+    return client.get(url, Model, params=params)
 
 
 # ty не поддерживает higher-rank polymorphism для generic-функций,

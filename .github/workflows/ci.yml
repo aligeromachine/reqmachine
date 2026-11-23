@@ -28,3 +28,6 @@ jobs:
 
       - name: Test Django service
         run: uv run python service/manage.py test api
+
+      - name: Build distributions
+        run: uv build

@@ -7,13 +7,19 @@ import responses
 from requests.exceptions import ConnectionError as ReqConnectionError
 from requests.exceptions import InvalidSchema, Timeout
 
+import reqmachine
 from reqmachine import (
+    DictValidator,
     HttpClient,
     HttpClientError,
     HttpConnectionError,
     HttpDecodeError,
     HttpStatusError,
     HttpTimeoutError,
+    HttpValidationError,
+    ListValidator,
+    http_get,
+    http_post,
 )
 
 URL = "http://127.0.0.1:8000/"
@@ -82,6 +88,26 @@ def test_get_invalid_json_raises_decode_error(client):
         content_type="application/json",
     )
     with pytest.raises(HttpDecodeError):
+        client.get(URL, GetJson)
+
+
+@responses.activate
+def test_get_scalar_json_raises_decode_error(client):
+    responses.add(
+        responses.GET,
+        URL,
+        body=b'"scalar"',
+        status=200,
+        content_type="application/json",
+    )
+    with pytest.raises(HttpDecodeError):
+        client.get(URL, GetJson)
+
+
+@responses.activate
+def test_get_validation_error(client):
+    responses.add(responses.GET, URL, json={"ok": [1]}, status=200)
+    with pytest.raises(HttpValidationError):
         client.get(URL, GetJson)
 
 
@@ -221,6 +247,11 @@ def test_upload_file_ok(client, tmp_path):
     assert b'"data"' in req.body
 
 
+def test_upload_meta_without_key_raises(client, tmp_path):
+    with pytest.raises(ValueError):
+        client.upload_file(URL, _make_file(tmp_path), meta={"x": 1})
+
+
 @responses.activate
 def test_upload_file_http_error_raises(client, tmp_path):
     responses.add(responses.POST, URL, json={"error": "x"}, status=500)
@@ -297,3 +328,43 @@ def test_context_manager_closes_session(monkeypatch):
     with HttpClient(verify=False) as c:
         monkeypatch.setattr(c.session, "close", lambda: closed.update(v=True))
     assert closed["v"] is True
+
+
+# ─────────────────────────── валидаторы ───────────────────────────
+
+
+def test_dict_validator_ok():
+    assert DictValidator(GetJson)({"ok": 1}) == GetJson(ok=1)
+
+
+def test_list_validator_ok():
+    result = ListValidator(GetJson)([{"ok": 1}, {"ok": True}])
+    assert result == [GetJson(ok=1), GetJson(ok=True)]
+
+
+def test_validator_wrong_shape_raises_validation_error():
+    with pytest.raises(HttpValidationError):
+        DictValidator(GetJson)({"ok": [1]})
+
+
+def test_py_typed_marker_exists():
+    p = Path(reqmachine.__file__).parent / "py.typed"
+    assert p.exists(), "PEP 561: маркер py.typed обязан быть в пакете"
+
+
+# ─────────────────────────── декораторы http_get / http_post ───────────────────────────
+
+
+@responses.activate
+def test_http_get_params_sent_as_query(client):
+    responses.add(responses.GET, URL, json={"ok": True}, status=200)
+    r = http_get(URL, GetJson, params={"page": "2"})
+    assert r == GetJson(ok=True)
+    assert responses.calls[0].request.url.endswith("page=2")
+
+
+@responses.activate
+def test_http_post_json(client):
+    responses.add(responses.POST, URL, json={"id": 1}, status=201)
+    r = http_post(URL, PostJson, json={"name": "a"})
+    assert r == PostJson(id=1)

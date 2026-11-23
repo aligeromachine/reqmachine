@@ -33,4 +33,8 @@ class HttpTimeoutError(HttpClientError):
 
 
 class HttpDecodeError(HttpClientError):
-    """Тело ответа не является валидным JSON."""
+    """Тело ответа не является валидным JSON (или не JSON-объект/массив)."""
+
+
+class HttpValidationError(HttpClientError):
+    """Ответ получен и разобран, но не соответствует переданной модели."""

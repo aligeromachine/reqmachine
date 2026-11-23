@@ -5,6 +5,8 @@ from typing import Any
 
 import msgspec
 
+from ..errors.errors import HttpValidationError
+
 
 class _ContainerValidator[T, I, O]:
     """Общая часть для валидаторов контейнеров.
@@ -44,7 +46,7 @@ class _ContainerValidator[T, I, O]:
         try:
             return self._convert(response, strict=self._strict)
         except msgspec.ValidationError as e:
-            raise TypeError(
+            raise HttpValidationError(
                 f"Валидация {type(self).__name__}["
                 f"{self._model.__name__}] не прошла: {e}"
             ) from e

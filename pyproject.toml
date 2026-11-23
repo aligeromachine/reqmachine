@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "reqmachine"
-version = "0.1.6"
+version = "0.1.7"
 description = "A small requests-based HTTP client with retries, JSON parsing and file upload/download helpers."
 readme = "README.md"
 license = "MIT"
@@ -41,8 +41,10 @@ Changelog = "https://github.com/aligeromachine/reqmachine/blob/main/CHANGES.md"
 dev = [
     "django>=5.2",
     "pytest>=9.2.0",
+    "pytest-cov>=6.0",
     "responses>=0.26.3",
     "ruff>=0.8.0",
+    "ty>=0.0.1",
 ]
 
 [tool.pytest.ini_options]

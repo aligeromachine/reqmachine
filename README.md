@@ -1,8 +1,8 @@
 # Welcome to **`reqmachine`**
 
 A small [requests](https://requests.readthedocs.io/)-based HTTP client with
-retries, JSON parsing ([orjson](https://github.com/ijl/orjson)) and file
-upload/download helpers.
+retries, JSON parsing and validation ([msgspec](https://github.com/jcrist/msgspec)),
+file upload/download helpers and convenience decorators.
 
 Requires Python **3.14+**.
 
@@ -17,9 +17,10 @@ pip install reqmachine
 ## Usage
 
 `@http_client` injects a fresh `HttpClient` as the first argument.
-`get/post/put/patch/delete` accept a type and return parsed data
-(`None` for an empty body), raising `HttpClientError` subclasses on
-failure. `http_get` / `http_post` are one-shot helpers.
+`get/post/put/patch/delete` accept a model type and return a validated
+instance / list of instances (`None` for an empty body, raw `bytes` for
+non-JSON bodies), raising `HttpClientError` subclasses on failure.
+`http_get` / `http_post` are one-shot helpers.
 
 ```python
 from dataclasses import dataclass
@@ -97,21 +98,56 @@ client = HttpClient(
     headers={"Authorization": "Bearer <token>"},
 )
 ```
-### Test service (Django)
+
+## Files
+
+```python
+from pathlib import Path
+from reqmachine import HttpClient
+
+url = "https://example.com/upload"
+key = "JSONData"
+meta = {"filename": "data.bin", "tags": ["demo"]}
+
+with HttpClient() as client:
+    client.upload_file(url, Path("data.bin"), key=key, meta=meta)
+    client.download_file("https://example.com/file", Path("out/file.bin"))
+```
+
+`upload_file` sends the file as multipart; the optional `meta` dict is
+serialized to JSON into the form field named by `key`. Both methods
+return `True` on success and raise on failure.
+
+## Errors
+
+All exceptions derive from `HttpClientError`:
+
+| Exception | When |
+|---|---|
+| `HttpStatusError` | Status is not 2xx/3xx (`.status`, `.response`) |
+| `HttpConnectionError` | Connection could not be established |
+| `HttpTimeoutError` | Connect/read timeout |
+| `HttpDecodeError` | Body claims to be JSON but is invalid or not an object/array |
+| `HttpValidationError` | Parsed body does not match the passed model |
+
+Non-JSON bodies are not an error: the raw `bytes` are returned as is.
+`is_url_available()` never raises — returns `False` on any network error.
+
+## Test service (Django)
 
 `service/` contains a small Django app that implements every endpoint
 scenario the client tests exercise — useful for running the client
 against a real local server:
 
 ```bash
-uv run python service/manage.py runserver 8000
+just serve    # or: uv run python service/manage.py runserver 8000
 ```
 
 | Endpoint | Scenario |
 |---|---|
 | `GET /api/json/` | 200 + JSON |
 | `GET /api/empty/` | 204, empty body → client returns `None` |
-| `GET /api/html/` | non-JSON body → `HttpDecodeError` |
+| `GET /api/html/` | non-JSON body → client returns `bytes` |
 | `GET /api/invalid-json/` | broken JSON → `HttpDecodeError` |
 | `GET /api/error/` | 500 + JSON → `HttpStatusError` |
 | `/api/echo/` | GET/POST/PUT/PATCH/DELETE echo (POST → 201) |
@@ -124,48 +160,26 @@ uv run python service/manage.py runserver 8000
 
 Example with the client:
 
-
-## Files
-
 ```python
 from pathlib import Path
 from reqmachine import HttpClient
 
-with HttpClient() as client:
-    client.upload_file("https://example.com/upload", Path("data.bin"))
-    client.download_file("https://example.com/file", Path("out/file.bin"))
+with HttpClient(verify=False) as client:
+    client.upload_file("http://127.0.0.1:8000/api/upload/", Path("data.bin"))
+    client.download_file("http://127.0.0.1:8000/api/payload/", Path("payload.bin"))
 ```
-
-`upload_file` sends the file as multipart with a JSON metadata field
-(`JSONData` by default). Both return `True` on success.
-
-## Errors
-
-All exceptions derive from `HttpClientError`:
-
-| Exception | When |
-|---|---|
-| `HttpStatusError` | Status is not 2xx/3xx (`.status`, `.response`) |
-| `HttpConnectionError` | Connection could not be established |
-| `HttpTimeoutError` | Connect/read timeout |
-| `HttpDecodeError` | Body is not valid JSON |
-
-`is_url_available()` never raises — returns `False` on any network error.
 
 ## Development
 
 ```bash
-uv sync
-uv run ruff check .
-uv run pytest
-```
-
-Local Django test service (`service/`, serves every endpoint scenario):
-
-```bash
-uv run python service/manage.py runserver 8000
+just sync          # uv sync --all-groups
+just lint          # ruff check + ruff format --check + ty check
+just test          # pytest
+just test-srv      # Django-тесты сервиса
+just test-all      # pytest + Django
+python3 scripts/smoke_offline.py   # smoke без pytest/responses/сети
 ```
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE.md).
