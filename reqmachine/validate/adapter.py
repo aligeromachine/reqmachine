@@ -1,80 +1,52 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Any
 
 import msgspec
 
-from ..errors.errors import HttpValidationError
+from ..errors.errors import HttpDecodeError, HttpValidationError
 
 
-class _ContainerValidator[T, I, O]:
-    """Общая часть для валидаторов контейнеров.
+class JsonValidator[T]:
+    """Декодирование и валидация JSON-документа по модели.
 
-    - T — модель элемента;
-    - I — ожидаемый входной контейнер (dict / list / ...);
-    - O — тип результата (T для dict, list[T] для list, ...).
+    Универсальный вход: bytes или str с текстом JSON (None — пустое
+    тело). Про HTTP класс не знает: решение «JSON это или нет»
+    принимает вызывающая сторона (HttpClient — по Content-Type и
+    первому байту тела).
+
+    Декодированный dict валидируется как T, list — как list[T]
+    (union `Model | list[Model]` в msgspec.convert).
     """
 
-    __slots__ = ("_convert", "_model", "_strict")
-
-    _expected_type: type  # переопределяется в наследниках
+    __slots__ = ("_convert", "_decode", "_model", "_strict")
 
     def __init__(self, Model: type[T], *, strict: bool = False) -> None:
         self._model = Model
-        self._convert = partial(msgspec.convert, type=self._resolve_target(Model))
+        # type=dict | list: скалярный JSON ("ok", 123) отсекается самой
+        # декодирующей стороной, ручная проверка не нужна
+        self._decode = partial(msgspec.json.decode, type=dict | list)
+        self._convert = partial(
+            msgspec.convert,
+            type=Model | list[Model],  # ty: ignore[invalid-type-form]
+        )
         self._strict = strict
 
-    @staticmethod
-    def _resolve_target(Model: type[T]) -> Any:
-        raise NotImplementedError
-
-    def __call__(
-        self,
-        response: I | None,
-    ) -> O | None:
-        if response is None:
+    def __call__(self, body: bytes | str | None) -> T | list[T] | None:
+        if not body:
             return None
 
-        if not isinstance(response, self._expected_type):
-            raise TypeError(
-                f"{type(self).__name__}: ожидался "
-                f"{self._expected_type.__name__} для {self._model.__name__}, "
-                f"получен {type(response).__name__}"
-            )
+        # ValidationError — подкласс DecodeError, поэтому ловим его первым
+        try:
+            decoded = self._decode(body)
+        except msgspec.ValidationError as exc:
+            raise HttpDecodeError(f"Expected JSON object or array: {exc}") from exc
+        except msgspec.DecodeError as exc:
+            raise HttpDecodeError(f"Invalid JSON: {exc}") from exc
 
         try:
-            return self._convert(response, strict=self._strict)
+            return self._convert(decoded, strict=self._strict)
         except msgspec.ValidationError as e:
             raise HttpValidationError(
-                f"Валидация {type(self).__name__}["
-                f"{self._model.__name__}] не прошла: {e}"
+                f"Валидация JsonValidator[{self._model.__name__}] не прошла: {e}"
             ) from e
-
-
-class DictValidator[T](_ContainerValidator[T, dict, T]):
-    """Валидатор dict → T.
-
-    Аналог pydantic.TypeAdapter для msgspec.convert.
-    """
-
-    __slots__ = ()
-    _expected_type = dict
-
-    @staticmethod
-    def _resolve_target(Model: type[T]) -> type[T]:
-        return Model
-
-
-class ListValidator[T](_ContainerValidator[T, list, list[T]]):
-    """Валидатор list → list[T].
-
-    Аналог pydantic.TypeAdapter(list[T]) для msgspec.convert.
-    """
-
-    __slots__ = ()
-    _expected_type = list
-
-    @staticmethod
-    def _resolve_target(Model: type[T]) -> type[list[T]]:
-        return list[Model]  # ty: ignore[invalid-type-form]

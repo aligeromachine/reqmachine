@@ -18,7 +18,7 @@ from .errors.errors import (
     HttpTimeoutError,
     HttpValidationError,
 )
-from .validate.adapter import DictValidator, ListValidator
+from .validate.adapter import JsonValidator
 
 try:
     __version__ = importlib.metadata.version("reqmachine")
@@ -27,7 +27,6 @@ except importlib.metadata.PackageNotFoundError:  # запуск из репоз�
 
 __all__ = [
     "Config",
-    "DictValidator",
     "HttpClient",
     "HttpClientError",
     "HttpConnectionError",
@@ -37,8 +36,8 @@ __all__ = [
     "HttpValidationError",
     "JsonDict",
     "JsonList",
+    "JsonValidator",
     "JsonValue",
-    "ListValidator",
     "ResponseRequest",
     "http_client",
     "http_get",

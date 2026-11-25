@@ -3,13 +3,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+import requests
 import responses
 from requests.exceptions import ConnectionError as ReqConnectionError
 from requests.exceptions import InvalidSchema, Timeout
 
 import reqmachine
 from reqmachine import (
-    DictValidator,
     HttpClient,
     HttpClientError,
     HttpConnectionError,
@@ -17,7 +17,7 @@ from reqmachine import (
     HttpStatusError,
     HttpTimeoutError,
     HttpValidationError,
-    ListValidator,
+    JsonValidator,
     http_get,
     http_post,
 )
@@ -87,8 +87,11 @@ def test_get_invalid_json_raises_decode_error(client):
         status=200,
         content_type="application/json",
     )
-    with pytest.raises(HttpDecodeError):
+    with pytest.raises(HttpDecodeError) as ei:
         client.get(URL, GetJson)
+    # url/response добавляет HttpClient: JsonValidator про HTTP не знает
+    assert ei.value.url == URL
+    assert ei.value.response is not None
 
 
 @responses.activate
@@ -150,6 +153,50 @@ def test_request_rejects_stream(client):
         client._request("GET", URL, GetJson, stream=True)
 
 
+# ─────────────────────────── Model=None: сырой ответ ───────────────────────────
+
+
+@responses.activate
+def test_get_model_none_returns_raw_response(client):
+    responses.add(responses.GET, URL, json={"ok": True}, status=200)
+    r = client.get(URL, None)
+    assert isinstance(r, requests.Response)
+    assert r.status_code == 200
+    assert r.json() == {"ok": True}
+
+
+@responses.activate
+def test_get_without_model_returns_raw_response(client):
+    # Model=None по умолчанию — парсинг/валидация не выполняются
+    responses.add(
+        responses.GET,
+        URL,
+        body="<html>oops</html>",
+        status=200,
+        content_type="text/html",
+    )
+    r = client.get(URL)
+    assert isinstance(r, requests.Response)
+    assert r.content == b"<html>oops</html>"
+
+
+@responses.activate
+def test_get_model_none_still_raises_status_error(client):
+    # Обработка ошибок при Model=None сохраняется
+    responses.add(responses.GET, URL, json={"error": "boom"}, status=500)
+    with pytest.raises(HttpStatusError) as ei:
+        client.get(URL, None)
+    assert ei.value.status == 500
+
+
+@responses.activate
+def test_post_model_none_returns_raw_response(client):
+    responses.add(responses.POST, URL, json={"id": 1}, status=201)
+    r = client.post(URL, json={"name": "a"})
+    assert isinstance(r, requests.Response)
+    assert r.status_code == 201
+
+
 # ─────────────────────────── post / put / patch / delete ───────────────────────────
 
 
@@ -167,7 +214,9 @@ def test_post_json(client):
 
 @responses.activate
 def test_post_data(client):
-    responses.add(responses.POST, URL, json={}, status=200)
+    # ответ обязан соответствовать PostJson: пустой {} больше не «съедается»
+    # falsy-проверкой, а валидируется по модели
+    responses.add(responses.POST, URL, json={"id": 1}, status=200)
     client.post(URL, PostJson, data={"x": "1"})
     assert responses.calls[0].request.body == "x=1"
 
@@ -333,18 +382,47 @@ def test_context_manager_closes_session(monkeypatch):
 # ─────────────────────────── валидаторы ───────────────────────────
 
 
-def test_dict_validator_ok():
-    assert DictValidator(GetJson)({"ok": 1}) == GetJson(ok=1)
+def test_json_validator_bytes_dict():
+    assert JsonValidator(GetJson)(b'{"ok": 1}') == GetJson(ok=1)
 
 
-def test_list_validator_ok():
-    result = ListValidator(GetJson)([{"ok": 1}, {"ok": True}])
+def test_json_validator_str_list():
+    result = JsonValidator(GetJson)('[{"ok": 1}, {"ok": true}]')
     assert result == [GetJson(ok=1), GetJson(ok=True)]
 
 
 def test_validator_wrong_shape_raises_validation_error():
     with pytest.raises(HttpValidationError):
-        DictValidator(GetJson)({"ok": [1]})
+        JsonValidator(GetJson)(b'{"ok": [1]}')
+
+
+def test_validator_list_item_raises_validation_error():
+    with pytest.raises(HttpValidationError):
+        JsonValidator(GetJson)(b'[{"ok": "x"}]')
+
+
+def test_validator_scalar_json_raises_decode_error():
+    with pytest.raises(HttpDecodeError):
+        JsonValidator(GetJson)(b'"scalar"')
+
+
+def test_validator_scalar_number_raises_decode_error():
+    with pytest.raises(HttpDecodeError):
+        JsonValidator(GetJson)(b"123")
+
+
+def test_validator_invalid_json_raises_decode_error():
+    with pytest.raises(HttpDecodeError):
+        JsonValidator(GetJson)(b"{not json")
+
+
+def test_validator_empty_body_returns_none():
+    assert JsonValidator(GetJson)(b"") is None
+    assert JsonValidator(GetJson)("") is None
+
+
+def test_validator_none_returns_none():
+    assert JsonValidator(GetJson)(None) is None
 
 
 def test_py_typed_marker_exists():
@@ -360,7 +438,9 @@ def test_http_get_params_sent_as_query(client):
     responses.add(responses.GET, URL, json={"ok": True}, status=200)
     r = http_get(URL, GetJson, params={"page": "2"})
     assert r == GetJson(ok=True)
-    assert responses.calls[0].request.url.endswith("page=2")
+    url = responses.calls[0].request.url
+    assert url is not None
+    assert url.endswith("page=2")
 
 
 @responses.activate
@@ -368,3 +448,11 @@ def test_http_post_json(client):
     responses.add(responses.POST, URL, json={"id": 1}, status=201)
     r = http_post(URL, PostJson, json={"name": "a"})
     assert r == PostJson(id=1)
+
+
+@responses.activate
+def test_http_get_model_none_returns_raw_response(client):
+    responses.add(responses.GET, URL, json={"ok": True}, status=200)
+    r = http_get(URL)
+    assert isinstance(r, requests.Response)
+    assert r.json() == {"ok": True}

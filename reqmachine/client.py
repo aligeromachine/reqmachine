@@ -19,7 +19,7 @@ from requests.exceptions import (
 )
 from urllib3.util.retry import Retry
 
-from reqmachine.validate.adapter import DictValidator, ListValidator
+from reqmachine.validate.adapter import JsonValidator
 
 from .core.config import Config
 from .errors.errors import (
@@ -34,15 +34,9 @@ from .errors.errors import (
 
 
 @cache
-def _dict_validator(Model: type) -> DictValidator:
-    """Кэшированный DictValidator: msgspec.build не пересобирается на каждый ответ."""
-    return DictValidator(Model)
-
-
-@cache
-def _list_validator(Model: type) -> ListValidator:
-    """Кэшированный ListValidator: аналогично DictValidator."""
-    return ListValidator(Model)
+def _json_validator(Model: type) -> JsonValidator:
+    """Кэшированный JsonValidator: не пересобирается на каждый ответ."""
+    return JsonValidator(Model)
 
 
 # ─────────────────────────── Клиент ───────────────────────────
@@ -93,60 +87,11 @@ class HttpClient:
     def close(self) -> None:
         self.session.close()
 
-    # ─── Парсинг ───
-
-    def _parse(self, response: requests.Response) -> dict | list | bytes | None:
-        if not response.content:
-            return None
-
-        ctype = response.headers.get("Content-Type", "").lower()
-        head = response.content[:1]
-        looks_json = head in (b"{", b"[") or "json" in ctype
-
-        if not looks_json:
-            return response.content
-
-        try:
-            # msgspec.json.decode принимает bytes и возвращает dict/list
-            decoded = msgspec.json.decode(response.content)
-        except msgspec.DecodeError as exc:
-            raise HttpDecodeError(
-                f"Invalid JSON from {response.url}: {exc}",
-                url=response.url,
-                response=response,
-            ) from exc
-
-        # Скалярный JSON ("ok", 123) не соответствует контракту
-        # dict | list — считаем это ошибкой декодирования.
-        if not isinstance(decoded, dict | list):
-            raise HttpDecodeError(
-                f"Expected JSON object or array from {response.url}, got {type(decoded).__name__}",
-                url=response.url,
-                response=response,
-            )
-        return decoded
-
-    # ─── Валидация ───
-
-    def _validate[T](
-        self, response: dict | list | bytes | None, Model: type[T]
-    ) -> T | list[T] | bytes | None:
-        if not response:
-            return None
-
-        if isinstance(response, dict):
-            return _dict_validator(Model)(response)
-
-        if isinstance(response, list):
-            return _list_validator(Model)(response)
-
-        return response
-
     # ─── Низкоуровневый запрос ───
 
     def _request[T](
-        self, method: str, url: str, Model: type[T], **kwargs: Any
-    ) -> T | list[T] | bytes | None:
+        self, method: str, url: str, Model: type[T] | None, **kwargs: Any
+    ) -> T | list[T] | bytes | requests.Response | None:
         if kwargs.get("stream"):
             raise ValueError(
                 "stream=True is not supported here; "
@@ -178,31 +123,50 @@ class HttpClient:
                 f"Request failed {method} {url}: {exc}", url=url
             ) from exc
 
-        response = self._parse(rsp)
+        # Model=None: тело не разбираем — отдаём requests.Response как есть.
+        if Model is None:
+            return rsp
 
-        return self._validate(response=response, Model=Model)
+        body = rsp.content
+        if not body:
+            return None
+
+        if (
+            body[:1] not in (b"{", b"[")
+            and "json" not in rsp.headers.get("Content-Type", "").lower()
+        ):
+            # Не JSON (HTML, бинарник) — тело как есть
+            return body
+
+        try:
+            return _json_validator(Model)(body)
+        except HttpDecodeError as exc:
+            # JsonValidator про HTTP не знает — контекст добавляем здесь
+            raise HttpDecodeError(
+                f"{exc} from {rsp.url}", url=rsp.url, response=rsp
+            ) from exc
 
     # ─── HTTP-методы ───
 
     def get[T](
         self,
         url: str,
-        Model: type[T],
+        Model: type[T] | None = None,
         params: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> T | list[T] | bytes | None:
+    ) -> T | list[T] | bytes | requests.Response | None:
         return self._request("GET", url, Model=Model, params=params, **kwargs)
 
     def post[T](
         self,
         url: str,
-        Model: type[T],
+        Model: type[T] | None = None,
         *,
         json: Any = None,
         data: Any = None,
         files: Any = None,
         **kwargs: Any,
-    ) -> T | list[T] | bytes | None:
+    ) -> T | list[T] | bytes | requests.Response | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
         return self._request(
@@ -212,12 +176,12 @@ class HttpClient:
     def put[T](
         self,
         url: str,
-        Model: type[T],
+        Model: type[T] | None = None,
         *,
         json: Any = None,
         data: Any = None,
         **kwargs: Any,
-    ) -> T | list[T] | bytes | None:
+    ) -> T | list[T] | bytes | requests.Response | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
         return self._request("PUT", url, Model=Model, json=json, data=data, **kwargs)
@@ -225,19 +189,19 @@ class HttpClient:
     def patch[T](
         self,
         url: str,
-        Model: type[T],
+        Model: type[T] | None = None,
         *,
         json: Any = None,
         data: Any = None,
         **kwargs: Any,
-    ) -> T | list[T] | bytes | None:
+    ) -> T | list[T] | bytes | requests.Response | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
         return self._request("PATCH", url, Model=Model, json=json, data=data, **kwargs)
 
     def delete[T](
-        self, url: str, Model: type[T], **kwargs: Any
-    ) -> T | list[T] | bytes | None:
+        self, url: str, Model: type[T] | None = None, **kwargs: Any
+    ) -> T | list[T] | bytes | requests.Response | None:
         return self._request("DELETE", url, Model=Model, **kwargs)
 
     # ─── Проверка доступности ───
@@ -353,8 +317,11 @@ def http_client[**P, R](
 # Аннотация корректна, ограничение — в ty.
 @http_client  # ty: ignore[invalid-argument-type]
 def http_get[T](
-    client: HttpClient, url: str, Model: type[T], params: dict | None = None
-) -> T | list[T] | bytes | None:
+    client: HttpClient,
+    url: str,
+    Model: type[T] | None = None,
+    params: dict | None = None,
+) -> T | list[T] | bytes | requests.Response | None:
     return client.get(url, Model, params=params)
 
 
@@ -363,6 +330,9 @@ def http_get[T](
 # Аннотация корректна, ограничение — в ty.
 @http_client  # ty: ignore[invalid-argument-type]
 def http_post[T](
-    client: HttpClient, url: str, Model: type[T], json: dict | None = None
-) -> T | list[T] | bytes | None:
+    client: HttpClient,
+    url: str,
+    Model: type[T] | None = None,
+    json: dict | None = None,
+) -> T | list[T] | bytes | requests.Response | None:
     return client.post(url, Model, json=json)

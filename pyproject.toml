@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "reqmachine"
-version = "0.1.7"
+version = "0.1.8"
 description = "A small requests-based HTTP client with retries, JSON parsing and file upload/download helpers."
 readme = "README.md"
 license = "MIT"
@@ -46,6 +46,13 @@ dev = [
     "ruff>=0.8.0",
     "ty>=0.0.1",
 ]
+
+# ─── uv ──────────────────────────────────────────────────────────────
+[tool.uv]
+# Копировать Python в .venv вместо симлинка.
+# Защищает виртуальное окружение от «поломки», когда uv-managed
+# интерпретатор (например, 3.14) удаляется/переустанавливается.
+link-mode = "copy"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
