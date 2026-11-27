@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "reqmachine"
-version = "0.1.8"
+version = "0.1.9"
 description = "A small requests-based HTTP client with retries, JSON parsing and file upload/download helpers."
 readme = "README.md"
 license = "MIT"
@@ -45,6 +45,21 @@ dev = [
     "responses>=0.26.3",
     "ruff>=0.8.0",
     "ty>=0.0.1",
+    # транзитивные зависимости, закреплённые явно, чтобы окружение
+    # можно было развернуть одним sync (в т.ч. офлайн-переносом)
+    "asgiref>=3.13.0",
+    "certifi>=2026.11.20",
+    "charset-normalizer>=3.5.2",
+    "colorama>=0.4.6; sys_platform == 'win32'",
+    "coverage>=7.17.5",
+    "idna>=3.20",
+    "iniconfig>=2.3.1",
+    "packaging>=26.3",
+    "pluggy>=1.7.0",
+    "pygments>=2.21.0",
+    "pyyaml>=6.0.4",
+    "sqlparse>=0.6.1",
+    "tzdata>=2026.6",
 ]
 
 # ─── uv ──────────────────────────────────────────────────────────────

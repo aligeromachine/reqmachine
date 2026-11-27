@@ -34,7 +34,7 @@ from .errors.errors import (
 
 
 @cache
-def _json_validator(Model: type) -> JsonValidator:
+def _json_validator[T](Model: type[T]) -> JsonValidator[T]:
     """Кэшированный JsonValidator: не пересобирается на каждый ответ."""
     return JsonValidator(Model)
 
@@ -91,7 +91,7 @@ class HttpClient:
 
     def _request[T](
         self, method: str, url: str, Model: type[T] | None, **kwargs: Any
-    ) -> T | list[T] | bytes | requests.Response | None:
+    ) -> T | list[T] | bytes | None:
         if kwargs.get("stream"):
             raise ValueError(
                 "stream=True is not supported here; "
@@ -123,13 +123,14 @@ class HttpClient:
                 f"Request failed {method} {url}: {exc}", url=url
             ) from exc
 
-        # Model=None: тело не разбираем — отдаём requests.Response как есть.
-        if Model is None:
-            return rsp
-
         body = rsp.content
         if not body:
             return None
+
+        # Model=None: модели нет — разбора нет, тело как есть.
+        # Голые контейнеры обрабатывает сам JsonValidator (raw-режим).
+        if Model is None:
+            return body
 
         if (
             body[:1] not in (b"{", b"[")
@@ -154,7 +155,7 @@ class HttpClient:
         Model: type[T] | None = None,
         params: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> T | list[T] | bytes | requests.Response | None:
+    ) -> T | list[T] | bytes | None:
         return self._request("GET", url, Model=Model, params=params, **kwargs)
 
     def post[T](
@@ -166,7 +167,7 @@ class HttpClient:
         data: Any = None,
         files: Any = None,
         **kwargs: Any,
-    ) -> T | list[T] | bytes | requests.Response | None:
+    ) -> T | list[T] | bytes | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
         return self._request(
@@ -181,7 +182,7 @@ class HttpClient:
         json: Any = None,
         data: Any = None,
         **kwargs: Any,
-    ) -> T | list[T] | bytes | requests.Response | None:
+    ) -> T | list[T] | bytes | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
         return self._request("PUT", url, Model=Model, json=json, data=data, **kwargs)
@@ -194,14 +195,14 @@ class HttpClient:
         json: Any = None,
         data: Any = None,
         **kwargs: Any,
-    ) -> T | list[T] | bytes | requests.Response | None:
+    ) -> T | list[T] | bytes | None:
         if json is not None and data is not None:
             raise ValueError("Pass either json= or data=, not both")
         return self._request("PATCH", url, Model=Model, json=json, data=data, **kwargs)
 
     def delete[T](
         self, url: str, Model: type[T] | None = None, **kwargs: Any
-    ) -> T | list[T] | bytes | requests.Response | None:
+    ) -> T | list[T] | bytes | None:
         return self._request("DELETE", url, Model=Model, **kwargs)
 
     # ─── Проверка доступности ───
@@ -321,7 +322,7 @@ def http_get[T](
     url: str,
     Model: type[T] | None = None,
     params: dict | None = None,
-) -> T | list[T] | bytes | requests.Response | None:
+) -> T | list[T] | bytes | None:
     return client.get(url, Model, params=params)
 
 
@@ -334,5 +335,5 @@ def http_post[T](
     url: str,
     Model: type[T] | None = None,
     json: dict | None = None,
-) -> T | list[T] | bytes | requests.Response | None:
+) -> T | list[T] | bytes | None:
     return client.post(url, Model, json=json)

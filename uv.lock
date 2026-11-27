@@ -394,12 +394,25 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "asgiref" },
+    { name = "certifi" },
+    { name = "charset-normalizer" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "coverage" },
     { name = "django" },
+    { name = "idna" },
+    { name = "iniconfig" },
+    { name = "packaging" },
+    { name = "pluggy" },
+    { name = "pygments" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "pyyaml" },
     { name = "responses" },
     { name = "ruff" },
+    { name = "sqlparse" },
     { name = "ty" },
+    { name = "tzdata" },
 ]
 
 [package.metadata]
@@ -411,12 +424,25 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "asgiref", specifier = ">=3.13.0" },
+    { name = "certifi", specifier = ">=2026.11.20" },
+    { name = "charset-normalizer", specifier = ">=3.5.2" },
+    { name = "colorama", marker = "sys_platform == 'win32'", specifier = ">=0.4.6" },
+    { name = "coverage", specifier = ">=7.17.5" },
     { name = "django", specifier = ">=5.2" },
+    { name = "idna", specifier = ">=3.20" },
+    { name = "iniconfig", specifier = ">=2.3.1" },
+    { name = "packaging", specifier = ">=26.3" },
+    { name = "pluggy", specifier = ">=1.7.0" },
+    { name = "pygments", specifier = ">=2.21.0" },
     { name = "pytest", specifier = ">=9.2.0" },
     { name = "pytest-cov", specifier = ">=6.0" },
+    { name = "pyyaml", specifier = ">=6.0.4" },
     { name = "responses", specifier = ">=0.26.3" },
     { name = "ruff", specifier = ">=0.8.0" },
+    { name = "sqlparse", specifier = ">=0.6.1" },
     { name = "ty", specifier = ">=0.0.1" },
+    { name = "tzdata", specifier = ">=2026.6" },
 ]
 
 [[package]]

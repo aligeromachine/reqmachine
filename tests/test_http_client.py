@@ -1,9 +1,9 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
-import requests
 import responses
 from requests.exceptions import ConnectionError as ReqConnectionError
 from requests.exceptions import InvalidSchema, Timeout
@@ -157,16 +157,16 @@ def test_request_rejects_stream(client):
 
 
 @responses.activate
-def test_get_model_none_returns_raw_response(client):
+def test_get_model_none_returns_raw_bytes(client):
+    # Model=None: разбора нет — сырые байты тела
     responses.add(responses.GET, URL, json={"ok": True}, status=200)
     r = client.get(URL, None)
-    assert isinstance(r, requests.Response)
-    assert r.status_code == 200
-    assert r.json() == {"ok": True}
+    assert isinstance(r, bytes)
+    assert json.loads(r) == {"ok": True}
 
 
 @responses.activate
-def test_get_without_model_returns_raw_response(client):
+def test_get_without_model_returns_raw_bytes(client):
     # Model=None по умолчанию — парсинг/валидация не выполняются
     responses.add(
         responses.GET,
@@ -175,9 +175,7 @@ def test_get_without_model_returns_raw_response(client):
         status=200,
         content_type="text/html",
     )
-    r = client.get(URL)
-    assert isinstance(r, requests.Response)
-    assert r.content == b"<html>oops</html>"
+    assert client.get(URL) == b"<html>oops</html>"
 
 
 @responses.activate
@@ -190,11 +188,28 @@ def test_get_model_none_still_raises_status_error(client):
 
 
 @responses.activate
-def test_post_model_none_returns_raw_response(client):
+def test_post_model_none_returns_raw_bytes(client):
     responses.add(responses.POST, URL, json={"id": 1}, status=201)
     r = client.post(URL, json={"name": "a"})
-    assert isinstance(r, requests.Response)
-    assert r.status_code == 201
+    assert isinstance(r, bytes)
+    assert json.loads(r) == {"id": 1}
+
+
+@responses.activate
+def test_get_bare_model_returns_raw_bytes(client):
+    # нетипизированная Model (голый dict): парсинга нет — сырые байты тела
+    responses.add(responses.GET, URL, json={"ok": True}, status=200)
+    assert client.get(URL) == b'{"ok": true}'
+
+    # и не-JSON ответ — тоже байты, без HttpDecodeError
+    responses.add(
+        responses.GET,
+        URL,
+        body="<html>oops</html>",
+        status=200,
+        content_type="text/html",
+    )
+    assert client.get(URL) == b"<html>oops</html>"
 
 
 # ─────────────────────────── post / put / patch / delete ───────────────────────────
@@ -425,6 +440,43 @@ def test_validator_none_returns_none():
     assert JsonValidator(GetJson)(None) is None
 
 
+def test_json_validator_bare_container_is_raw():
+    # нетипизированная Model (голый контейнер): парсить не нужно,
+    # тело возвращается как есть
+    for model in (dict, list, tuple, set, frozenset):
+        v = JsonValidator(model)
+        assert v(b'{"a": 1}') == b'{"a": 1}'
+        assert v("[1, 2]") == "[1, 2]"
+        assert v(b"<html>x</html>") == b"<html>x</html>"
+        assert v(b"") is None
+        assert v(None) is None
+
+
+def test_json_validator_model_list_dict():
+    assert JsonValidator(list[dict])(b'[{"a": 1}]') == [{"a": 1}]
+    with pytest.raises(HttpValidationError):
+        JsonValidator(list[dict])(b'{"a": 1}')
+
+
+def test_json_validator_model_set_int():
+    assert JsonValidator(set[int])(b"[1, 2, 2, 3]") == {1, 2, 3}
+
+
+def test_json_validator_model_tuple():
+    assert JsonValidator(tuple[int, str])(b'[1, "a"]') == (1, "a")
+
+
+def test_json_validator_model_dict_str_any():
+    assert JsonValidator(dict[str, Any])(b'{"a": 1}') == {"a": 1}
+    assert JsonValidator(dict[str, Any])(b'[{"a": 1}]') == [{"a": 1}]
+
+
+def test_json_validator_model_any_is_raw():
+    # Any — «сырой JSON» без валидации, легальная замена голым dict/list
+    assert JsonValidator(Any)(b'{"a": [1, 2], "b": "x"}') == {"a": [1, 2], "b": "x"}
+    assert JsonValidator(Any)('[1, "x"]') == [1, "x"]
+
+
 def test_py_typed_marker_exists():
     p = Path(reqmachine.__file__).parent / "py.typed"
     assert p.exists(), "PEP 561: маркер py.typed обязан быть в пакете"
@@ -451,8 +503,8 @@ def test_http_post_json(client):
 
 
 @responses.activate
-def test_http_get_model_none_returns_raw_response(client):
+def test_http_get_model_none_returns_raw_bytes(client):
     responses.add(responses.GET, URL, json={"ok": True}, status=200)
     r = http_get(URL)
-    assert isinstance(r, requests.Response)
-    assert r.json() == {"ok": True}
+    assert isinstance(r, bytes)
+    assert json.loads(r) == {"ok": True}

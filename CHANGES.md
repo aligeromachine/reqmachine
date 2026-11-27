@@ -5,6 +5,15 @@ All notable changes to **reqmachine** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.9]
+
+### Changed
+- `Model=None` возвращает сырые байты тела — так же, как голые контейнеры; `requests.Response` больше не входит в типы возврата `HttpClient` (объект ответа при необходимости доступен через `client.session`)
+- Нетипизированная `Model` — голый контейнер (`dict`, `list`, `tuple`, `set`, `frozenset`) — означает «без разбора»: тело ответа возвращается как есть (`bytes`), без декодирования и валидации; не-JSON ответ тоже не даёт ошибки. Типизированные формы работают как прежде: `list[dict]`, `list[MyModel]`, `dict[str, Any]`, `set[int]`; `typing.Any` декодирует любой JSON без валидации
+
+### Fixed
+- Array-like модели (`list[...]`, `tuple[...]`, `set[...]`) больше не собирают union `Model | list[Model]` с двумя array-like, который msgspec отвергает `TypeError`, — целью конвертации служит сама `Model`
+
 ## [0.1.8]
 
 ### Changed
